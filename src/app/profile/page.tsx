@@ -7,13 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut } from 'lucide-react';
+import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut, Briefcase, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase, useAuth, setDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
-import { WasteComplaint } from '@/lib/types';
+import { WasteComplaint, UserProfile } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
@@ -35,7 +35,7 @@ export default function ProfilePage() {
     return doc(firestore, 'users', user.uid);
   }, [firestore, user]);
 
-  const { data: profileDoc, isLoading: isProfileLoading } = useDoc(profileRef);
+  const { data: profileDoc, isLoading: isProfileLoading } = useDoc<UserProfile>(profileRef);
 
   useEffect(() => {
     if (profileDoc) {
@@ -59,7 +59,6 @@ export default function ProfilePage() {
 
   const sortedComplaints = useMemo(() => {
     if (!userComplaints) return [];
-    // Client-side sort to avoid index requirements for now
     return [...userComplaints].sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -76,6 +75,7 @@ export default function ProfilePage() {
       name: editName,
       contactNumber: editPhone,
       email: user.email || '',
+      role: profileDoc?.role || 'citizen',
       registeredDateTime: profileDoc?.registeredDateTime || new Date().toISOString(),
     };
 
@@ -92,11 +92,11 @@ export default function ProfilePage() {
     window.location.reload();
   };
 
-  if (isUserLoading) {
+  if (isUserLoading || isProfileLoading) {
     return (
       <div className="container py-20 flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-sm font-medium text-muted-foreground">Identifying citizen profile...</p>
+        <p className="text-sm font-medium text-muted-foreground">Identifying guardian profile...</p>
       </div>
     );
   }
@@ -113,13 +113,20 @@ export default function ProfilePage() {
     );
   }
 
+  const isWorker = profileDoc?.role === 'worker';
+
   return (
     <div className="container px-4 py-8 md:py-12 max-w-4xl">
       <div className="flex flex-col gap-10">
         <div className="relative">
-          <div className="h-48 rounded-3xl bg-gradient-to-r from-primary to-accent overflow-hidden relative shadow-lg">
+          <div className={cn(
+            "h-48 rounded-3xl overflow-hidden relative shadow-lg bg-gradient-to-r",
+            isWorker ? "from-accent to-blue-900" : "from-primary to-green-800"
+          )}>
              <div className="absolute inset-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/leaf.png')]"></div>
-             <div className="absolute bottom-4 right-6 text-white/40 text-xs font-bold uppercase tracking-widest">Madurai District Hero</div>
+             <div className="absolute bottom-4 right-6 text-white/40 text-xs font-bold uppercase tracking-widest">
+               {isWorker ? "Authorized Cleanup Guardian" : "Heritage Protector"}
+             </div>
           </div>
           <div className="absolute -bottom-8 left-8 flex items-end gap-6">
             <Avatar className="h-32 w-32 border-4 border-white shadow-2xl rounded-3xl bg-white overflow-hidden">
@@ -147,9 +154,9 @@ export default function ProfilePage() {
                   <h1 className="text-3xl font-bold tracking-tight shadow-sm md:shadow-none bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg">
                     {profileDoc?.name || user?.displayName || editName}
                   </h1>
-                  <div className="flex items-center gap-2 text-blue-100 md:text-muted-foreground font-medium bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg mt-1">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Guardian of the Temple City</span>
+                  <div className="flex items-center gap-2 text-white md:text-muted-foreground font-medium bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg mt-1">
+                    {isWorker ? <Briefcase className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                    <span>{isWorker ? "Cleanup Operation Worker" : "Guardian of the Temple City"}</span>
                   </div>
                  </>
                )}
@@ -182,7 +189,7 @@ export default function ProfilePage() {
           {[
             { label: 'Reports', value: totalCount.toString(), icon: Leaf, color: 'text-green-600', bg: 'bg-green-50' },
             { label: 'Cleaned', value: resolvedCount.toString(), icon: ShieldCheck, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Impact', value: (totalCount * 50).toString(), icon: Award, color: 'text-orange-600', bg: 'bg-orange-50' },
+            { label: 'Role', value: profileDoc?.role || 'Citizen', icon: isWorker ? Briefcase : UserCircle, color: 'text-orange-600', bg: 'bg-orange-50' },
             { label: 'District', value: 'Madurai', icon: MapPin, color: 'text-purple-600', bg: 'bg-purple-50' },
           ].map((stat, i) => (
             <Card key={i} className="border-none shadow-sm rounded-2xl overflow-hidden bg-white">
@@ -190,7 +197,7 @@ export default function ProfilePage() {
                 <div className={cn("w-10 h-10 rounded-full mx-auto mb-3 flex items-center justify-center", stat.bg)}>
                   <stat.icon className={cn("w-5 h-5", stat.color)} />
                 </div>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-xl font-bold capitalize">{stat.value}</div>
                 <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</div>
               </CardContent>
             </Card>
@@ -200,7 +207,7 @@ export default function ProfilePage() {
         <div className="grid md:grid-cols-3 gap-8">
           <div className="md:col-span-2 space-y-6">
              <div className="flex items-center justify-between px-2">
-               <h2 className="text-2xl font-bold">Your Recent Activity</h2>
+               <h2 className="text-2xl font-bold">Your Activity History</h2>
                {totalCount > 0 && <Badge variant="secondary" className="bg-primary/10 text-primary border-none">{totalCount} Total</Badge>}
              </div>
              
@@ -240,9 +247,9 @@ export default function ProfilePage() {
                )) : (
                  <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-200">
                    <Leaf className="w-12 h-12 mx-auto text-muted-foreground/20 mb-4" />
-                   <p className="text-muted-foreground font-medium">You haven't submitted any reports yet.</p>
+                   <p className="text-muted-foreground font-medium">No activity recorded yet.</p>
                    <Button asChild variant="link" className="mt-2">
-                     <Link href="/submit">Start your first report</Link>
+                     <Link href="/submit">Submit your first report</Link>
                    </Button>
                  </div>
                )}
@@ -267,25 +274,30 @@ export default function ProfilePage() {
                       <p className="font-medium">{profileDoc?.contactNumber || editPhone || 'Not provided'}</p>
                    </div>
                  </div>
-                 {user.isAnonymous && (
-                   <div className="pt-4 mt-4 border-t">
-                      <p className="text-xs text-muted-foreground mb-3 leading-relaxed">You are currently in a temporary citizen session. Create an account to preserve your impact history.</p>
-                      <Button asChild variant="secondary" className="w-full rounded-xl">
-                        <Link href="/login">Upgrade Account</Link>
-                      </Button>
+                 <div className="flex items-center gap-3">
+                   {isWorker ? <Briefcase className="w-4 h-4 text-accent" /> : <UserCircle className="w-4 h-4 text-primary" />}
+                   <div className="text-sm">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Account Type</p>
+                      <p className="font-bold capitalize">{profileDoc?.role || 'Citizen'}</p>
                    </div>
-                 )}
+                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-lg rounded-3xl overflow-hidden bg-accent text-white">
+            <Card className={cn(
+              "border-none shadow-lg rounded-3xl overflow-hidden bg-accent text-white",
+              isWorker && "bg-blue-900"
+            )}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-3">
                   <Award className="w-5 h-5 text-blue-200" />
                   <h4 className="font-bold">Madurai Pride</h4>
                 </div>
                 <p className="text-sm opacity-90 leading-relaxed italic">
-                  "Every piece of plastic removed from our streets preserves the heritage of our thousand-pillar city."
+                  {isWorker 
+                    ? "\"Dedicated to the restoration of our city's splendor, one street at a time.\""
+                    : "\"Every piece of plastic removed from our streets preserves the heritage of our thousand-pillar city.\""
+                  }
                 </p>
               </CardContent>
             </Card>

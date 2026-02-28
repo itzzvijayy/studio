@@ -3,23 +3,36 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     /**
-     * MADURAI CIVIC ACTION - CITIZEN EMPOWERMENT RULES
-     * Ensures public feed access while protecting private profiles.
-     * Version: 2024-05-23T10:00:00Z
+     * MADURAI CIVIC ACTION - CITIZEN & WORKER RULES
      */
 
-    // Public feed: Anyone signed in can view all reports
-    match /complaints/{complaintId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      // Only the reporter or authorized council (placeholder) can update status
-      // For now, allow owners to update their own reports
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // User profiles: Only the citizen themselves can read or update their record
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isWorker() {
+      return isSignedIn() && getUserData().role == 'worker';
+    }
+
+    // Complaints rules
+    match /complaints/{complaintId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Only the reporter or a worker can update status
+      allow update: if isSignedIn() && (
+        request.auth.uid == resource.data.userId || 
+        isWorker()
+      );
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
+
+    // User profiles rules
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Default: block all other access

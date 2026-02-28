@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -23,6 +24,14 @@
           "type": "string",
           "description": "The contact phone number of the user."
         },
+        "role": {
+          "type": "string",
+          "description": "The role of the user within the system.",
+          "enum": [
+            "citizen",
+            "worker"
+          ]
+        },
         "registeredDateTime": {
           "type": "string",
           "description": "The date and time when the user's profile was created.",
@@ -33,6 +42,7 @@
         "id",
         "name",
         "email",
+        "role",
         "registeredDateTime"
       ]
     },

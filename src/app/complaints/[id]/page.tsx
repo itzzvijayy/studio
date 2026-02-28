@@ -1,22 +1,25 @@
 
 "use client";
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2 } from 'lucide-react';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useUser, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { WasteComplaint } from '@/lib/types';
+import { WasteComplaint, UserProfile, ComplaintStatus } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
   
   const complaintRef = useMemoFirebase(() => {
     if (!firestore || !id) return null;
@@ -24,6 +27,27 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   }, [firestore, id]);
 
   const { data: complaint, isLoading } = useDoc<WasteComplaint>(complaintRef);
+
+  const profileRef = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: profileDoc } = useDoc<UserProfile>(profileRef);
+
+  const handleUpdateStatus = (newStatus: ComplaintStatus) => {
+    if (!complaintRef) return;
+    
+    updateDocumentNonBlocking(complaintRef, { 
+      status: newStatus,
+      resolvedDateTime: newStatus === 'resolved' ? new Date().toISOString() : null
+    });
+
+    toast({
+      title: "Status Updated",
+      description: `Report marked as ${newStatus}. Thank you for your service!`,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -44,6 +68,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  const isWorker = profileDoc?.role === 'worker';
   const statusInfo = {
     pending: { icon: AlertCircle, color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Reported' },
     'in-progress': { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Under Review' },
@@ -117,6 +142,36 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
               Reported by {complaint.userName}
             </div>
           </div>
+
+          {/* Worker Controls */}
+          {isWorker && (
+            <Card className="border-2 border-accent/20 bg-accent/5 rounded-3xl overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Briefcase className="w-5 h-5 text-accent" />
+                  <h3 className="font-bold text-accent">Worker Control Panel</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    variant={complaint.status === 'in-progress' ? "default" : "outline"} 
+                    className="rounded-xl h-12 font-bold"
+                    onClick={() => handleUpdateStatus('in-progress')}
+                    disabled={complaint.status === 'in-progress'}
+                  >
+                    Mark In-Progress
+                  </Button>
+                  <Button 
+                    variant={complaint.status === 'resolved' ? "default" : "outline"} 
+                    className="rounded-xl h-12 font-bold bg-green-600 hover:bg-green-700 text-white border-none"
+                    onClick={() => handleUpdateStatus('resolved')}
+                    disabled={complaint.status === 'resolved'}
+                  >
+                    Mark Resolved
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="space-y-3">
             <h3 className="font-bold text-lg text-gray-800">Citizen Description</h3>

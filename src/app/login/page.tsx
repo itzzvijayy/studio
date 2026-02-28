@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -7,16 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth, useUser, useFirestore, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
-import { Loader2, Mail, Lock, User, Leaf, Phone } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Leaf, Phone, Briefcase, UserCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc } from 'firebase/firestore';
+import { UserRole } from '@/lib/types';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<UserRole>('citizen');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const auth = useAuth();
   const firestore = useFirestore();
@@ -34,13 +38,14 @@ export default function LoginPage() {
     setIsSubmitting(true);
     
     initiateEmailSignIn(auth, email, password)
+      .then(() => {
+        router.push('/profile');
+      })
       .catch((error: any) => {
         setIsSubmitting(false);
         let message = "Could not sign you in. Please check your credentials.";
         if (error.code === 'auth/invalid-credential') {
           message = "Invalid email or password. Please try again.";
-        } else if (error.code === 'auth/user-not-found') {
-          message = "No citizen account found with this email.";
         }
         
         toast({
@@ -49,11 +54,6 @@ export default function LoginPage() {
           variant: "destructive",
         });
       });
-
-    toast({
-      title: "Authenticating...",
-      description: "Checking your citizen credentials.",
-    });
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -71,21 +71,20 @@ export default function LoginPage() {
         name: name,
         email: email,
         contactNumber: phone,
+        role: role,
         registeredDateTime: new Date().toISOString(),
       });
 
       toast({
         title: "Account Created",
-        description: "Welcome to the Madurai Guardian community!",
+        description: `Welcome, ${role === 'worker' ? 'Cleanup Guardian' : 'Madurai Citizen'}!`,
       });
       router.push('/profile');
     } catch (error: any) {
       setIsSubmitting(false);
       let message = "We couldn't create your account. Please try again.";
       if (error.code === 'auth/email-already-in-use') {
-        message = "This email is already registered as a Madurai Guardian.";
-      } else if (error.code === 'auth/weak-password') {
-        message = "Your password should be at least 6 characters long.";
+        message = "This email is already registered.";
       }
 
       toast({
@@ -103,7 +102,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary text-white mb-4 shadow-xl">
             <Leaf className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Citizen Portal</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Citizen & Worker Portal</h1>
           <p className="text-muted-foreground">Join the movement for a cleaner, greener Madurai.</p>
         </div>
 
@@ -155,6 +154,37 @@ export default function LoginPage() {
 
               <TabsContent value="signup" className="p-8 mt-0">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-4 mb-4">
+                    <Label>Join as a...</Label>
+                    <RadioGroup 
+                      defaultValue="citizen" 
+                      value={role} 
+                      onValueChange={(v) => setRole(v as UserRole)}
+                      className="grid grid-cols-2 gap-4"
+                    >
+                      <div>
+                        <RadioGroupItem value="citizen" id="r-citizen" className="peer sr-only" />
+                        <Label
+                          htmlFor="r-citizen"
+                          className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                        >
+                          <UserCircle className="mb-2 h-6 w-6" />
+                          <span className="text-xs font-bold uppercase">Citizen</span>
+                        </Label>
+                      </div>
+                      <div>
+                        <RadioGroupItem value="worker" id="r-worker" className="peer sr-only" />
+                        <Label
+                          htmlFor="r-worker"
+                          className="flex flex-col items-center justify-between rounded-xl border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                        >
+                          <Briefcase className="mb-2 h-6 w-6" />
+                          <span className="text-xs font-bold uppercase">Worker</span>
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-name">Full Name</Label>
                     <div className="relative">
@@ -177,7 +207,7 @@ export default function LoginPage() {
                       <Input 
                         id="signup-phone" 
                         type="tel" 
-                        placeholder="Your phone number" 
+                        placeholder="Phone number" 
                         className="pl-10 h-12 rounded-xl"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
@@ -216,7 +246,7 @@ export default function LoginPage() {
                     </div>
                   </div>
                   <Button type="submit" className="w-full h-12 rounded-xl text-lg font-bold mt-2" disabled={isSubmitting}>
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Citizen Account"}
+                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Create Account"}
                   </Button>
                 </form>
               </TabsContent>

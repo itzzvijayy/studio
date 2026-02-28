@@ -2,6 +2,16 @@
 export type WasteType = 'plastic' | 'organic' | 'electronic' | 'glass' | 'paper' | 'metal' | 'textile' | 'hazardous' | 'mixed' | 'unknown';
 export type Severity = 'low' | 'medium' | 'high' | 'critical';
 export type ComplaintStatus = 'pending' | 'in-progress' | 'resolved';
+export type UserRole = 'citizen' | 'worker';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  contactNumber?: string;
+  role: UserRole;
+  registeredDateTime: string;
+}
 
 export interface WasteComplaint {
   id: string;
