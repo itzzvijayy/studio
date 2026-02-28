@@ -39,8 +39,7 @@ Your task is to analyze the provided text description of a waste complaint, crea
 Complaint Description:
 {{{complaintText}}}
 
-Please provide the output in JSON format, ensuring it adheres to the following structure:
-{{jsonSchema output}}`,
+Please provide the output in JSON format adhering to the defined schema.`,
 });
 
 const aiComplaintSummaryFromTextFlow = ai.defineFlow(
