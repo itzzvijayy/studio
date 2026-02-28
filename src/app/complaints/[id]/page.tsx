@@ -2,19 +2,36 @@
 "use client";
 
 import { use } from 'react';
-import { MOCK_COMPLAINTS } from '@/lib/mock-data';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon } from 'lucide-react';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { WasteComplaint } from '@/lib/types';
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const complaint = MOCK_COMPLAINTS.find(c => c.id === id);
+  const firestore = useFirestore();
+  
+  const complaintRef = useMemoFirebase(() => {
+    if (!firestore || !id) return null;
+    return doc(firestore, 'complaints', id);
+  }, [firestore, id]);
+
+  const { data: complaint, isLoading } = useDoc<WasteComplaint>(complaintRef);
+
+  if (isLoading) {
+    return (
+      <div className="container py-20 flex justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!complaint) {
     return (
@@ -33,7 +50,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     resolved: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', label: 'Cleaned Up' },
   };
 
-  const currentStatus = statusInfo[complaint.status];
+  const currentStatus = statusInfo[complaint.status as keyof typeof statusInfo] || statusInfo.pending;
   const StatusIcon = currentStatus.icon;
 
   return (
@@ -46,7 +63,6 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
       </Button>
 
       <div className="grid lg:grid-cols-2 gap-10">
-        {/* Left Column: Image & Location */}
         <div className="space-y-6">
           <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
             <Image 
@@ -64,20 +80,18 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                    <MapIcon className="w-5 h-5 text-accent" />
                    <h3 className="font-bold text-lg">Site Location</h3>
                  </div>
-                 <Button variant="outline" size="sm" className="rounded-full">View on Map</Button>
                </div>
                <p className="text-muted-foreground mb-2 flex items-start gap-2">
                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-1" />
                  {complaint.location.address}
                </p>
                <div className="p-3 bg-muted/30 rounded-xl text-xs font-mono text-center">
-                 Coordinates: {complaint.location.lat}, {complaint.location.lng}
+                 Coordinates: {complaint.location.lat.toFixed(4)}, {complaint.location.lng.toFixed(4)}
                </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column: Details & AI Analysis */}
         <div className="space-y-6">
           <div className="flex items-center gap-3 mb-2">
             <div className={cn("p-2 rounded-xl", currentStatus.bg)}>

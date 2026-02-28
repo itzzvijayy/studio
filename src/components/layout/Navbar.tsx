@@ -3,12 +3,21 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Camera, ClipboardList, User, MapPin, Leaf } from 'lucide-react';
+import { Camera, ClipboardList, User, Leaf } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
+import { useEffect } from 'react';
 
 export function Navbar() {
   const pathname = usePathname();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+
+  useEffect(() => {
+    if (!isUserLoading && !user) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
 
   const navItems = [
     { label: 'Submit', href: '/submit', icon: Camera },

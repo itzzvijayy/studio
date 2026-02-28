@@ -1,8 +1,8 @@
-
 import type { Metadata } from 'next';
 import './globals.css';
 import { Navbar } from '@/components/layout/Navbar';
 import { Toaster } from '@/components/ui/toaster';
+import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
   title: 'Vision-AI Clean Madurai | Civic Cleanup Platform',
@@ -22,11 +22,13 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body bg-background text-foreground antialiased min-h-screen">
-        <Navbar />
-        <main className="pt-0 md:pt-16 pb-20 md:pb-0">
-          {children}
-        </main>
-        <Toaster />
+        <FirebaseClientProvider>
+          <Navbar />
+          <main className="pt-0 md:pt-16 pb-20 md:pb-0">
+            {children}
+          </main>
+          <Toaster />
+        </FirebaseClientProvider>
       </body>
     </html>
   );

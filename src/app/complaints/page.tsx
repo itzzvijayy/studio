@@ -2,16 +2,32 @@
 "use client";
 
 import { useState } from 'react';
-import { MOCK_COMPLAINTS } from '@/lib/mock-data';
 import { ComplaintCard } from '@/components/waste/ComplaintCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, ClipboardList } from 'lucide-react';
+import { Search, Filter, ClipboardList, Loader2 } from 'lucide-react';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, where, orderBy } from 'firebase/firestore';
+import { WasteComplaint } from '@/lib/types';
 
 export default function ComplaintsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { user } = useUser();
+  const firestore = useFirestore();
 
-  const filteredComplaints = MOCK_COMPLAINTS.filter(c => 
+  const complaintsQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    // We filter by userId to satisfy security rules (resource.data.userId == auth.uid)
+    return query(
+      collection(firestore, 'complaints'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+  }, [firestore, user]);
+
+  const { data: complaints, isLoading } = useCollection<WasteComplaint>(complaintsQuery);
+
+  const filteredComplaints = (complaints || []).filter(c => 
     c.aiSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.location.address.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -22,9 +38,9 @@ export default function ComplaintsListPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-primary mb-1">
             <ClipboardList className="w-8 h-8" />
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Public Reports</h1>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Your Reports</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Transparent tracking of all reported environmental issues in Madurai.</p>
+          <p className="text-muted-foreground text-lg">Transparent tracking of your reported environmental issues in Madurai.</p>
         </div>
 
         <div className="relative w-full md:w-96">
@@ -53,43 +69,52 @@ export default function ComplaintsListPage() {
           </div>
         </div>
 
-        <TabsContent value="all" className="m-0">
-          {filteredComplaints.length > 0 ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredComplaints.map((complaint) => (
-                <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-muted-foreground/20">
-              <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
-              <p className="text-xl font-medium text-muted-foreground">No reports found matching your search.</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="pending" className="m-0">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredComplaints.filter(c => c.status === 'pending').map((complaint) => (
-              <ComplaintCard key={complaint.id} complaint={complaint} />
-            ))}
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
           </div>
-        </TabsContent>
+        ) : (
+          <>
+            <TabsContent value="all" className="m-0">
+              {filteredComplaints.length > 0 ? (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredComplaints.map((complaint) => (
+                    <ComplaintCard key={complaint.id} complaint={complaint} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-muted-foreground/20">
+                  <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
+                  <p className="text-xl font-medium text-muted-foreground">No reports found.</p>
+                </div>
+              )}
+            </TabsContent>
 
-        <TabsContent value="in-progress" className="m-0">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredComplaints.filter(c => c.status === 'in-progress').map((complaint) => (
-              <ComplaintCard key={complaint.id} complaint={complaint} />
-            ))}
-          </div>
-        </TabsContent>
+            <TabsContent value="pending" className="m-0">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredComplaints.filter(c => c.status === 'pending').map((complaint) => (
+                  <ComplaintCard key={complaint.id} complaint={complaint} />
+                ))}
+              </div>
+            </TabsContent>
 
-        <TabsContent value="resolved" className="m-0">
-           {/* Empty state for resolved for now */}
-           <div className="text-center py-20 bg-white rounded-3xl">
-              <p className="text-muted-foreground italic">No recently resolved issues in this area.</p>
-           </div>
-        </TabsContent>
+            <TabsContent value="in-progress" className="m-0">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredComplaints.filter(c => c.status === 'in-progress').map((complaint) => (
+                  <ComplaintCard key={complaint.id} complaint={complaint} />
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="resolved" className="m-0">
+               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredComplaints.filter(c => c.status === 'resolved').map((complaint) => (
+                  <ComplaintCard key={complaint.id} complaint={complaint} />
+                ))}
+              </div>
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

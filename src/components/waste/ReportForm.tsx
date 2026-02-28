@@ -3,7 +3,7 @@
 
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, Upload, MapPin, X, Loader2, Send, AlertTriangle, Sparkles } from 'lucide-react';
+import { Camera, MapPin, X, Loader2, Send, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,8 @@ import { aiWasteDetectionAndClassification } from '@/ai/flows/ai-waste-detection
 import { aiComplaintSummaryFromText } from '@/ai/flows/ai-complaint-summary-from-text';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 export function ReportForm() {
   const [image, setImage] = useState<string | null>(null);
@@ -27,6 +29,8 @@ export function ReportForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
+  const firestore = useFirestore();
+  const { user } = useUser();
 
   const handleGetLocation = () => {
     if ("geolocation" in navigator) {
@@ -36,7 +40,6 @@ export function ReportForm() {
           lng: position.coords.longitude
         };
         setLocation(coords);
-        // If address is empty or looks like coordinates, update it
         if (!address || address.includes(',')) {
           setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
         }
@@ -74,7 +77,6 @@ export function ReportForm() {
       const result = await aiWasteDetectionAndClassification({ photoDataUri: dataUri });
       setAiResult(result);
       
-      // Auto-fill description if user hasn't typed anything
       if (result.wasteDetected && result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
@@ -100,7 +102,6 @@ export function ReportForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validation
     if (!image) {
       toast({ title: "Image Required", description: "Please take or upload a photo of the waste.", variant: "destructive" });
       return;
@@ -113,15 +114,34 @@ export function ReportForm() {
       toast({ title: "Description Required", description: "Please provide a brief description of the issue.", variant: "destructive" });
       return;
     }
+    if (!user) {
+      toast({ title: "Session Error", description: "You must be signed in to submit a report.", variant: "destructive" });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      // Use text summary AI if we have a description
-      // This step helps categorize the report for the dashboard
-      await aiComplaintSummaryFromText({ complaintText: description });
+      const summaryResult = await aiComplaintSummaryFromText({ complaintText: description });
       
-      // Simulate database save
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const newComplaint = {
+        userId: user.uid,
+        userName: user.displayName || 'Anonymous Citizen',
+        imageUrl: image, // Note: In production, images should be uploaded to Storage first.
+        location: location ? { ...location, address } : { lat: 0, lng: 0, address },
+        description: description,
+        aiSummary: summaryResult.summary,
+        aiKeyDetails: summaryResult.keyDetails,
+        aiAnalysis: {
+          wasteDetected: aiResult?.wasteDetected ?? false,
+          wasteType: aiResult?.wasteType ?? 'unknown',
+          severity: aiResult?.severity ?? 'medium',
+          analysisDetails: aiResult?.analysisDetails ?? description,
+        },
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      };
+
+      addDocumentNonBlocking(collection(firestore, 'complaints'), newComplaint);
       
       toast({
         title: "Report Received",
@@ -132,7 +152,7 @@ export function ReportForm() {
       console.error('Submission Error:', error);
       toast({
         title: "Submission Failed",
-        description: "We couldn't process your report right now. Please check your connection and try again.",
+        description: "We couldn't process your report right now.",
         variant: "destructive",
       });
     } finally {
@@ -147,7 +167,6 @@ export function ReportForm() {
         <p className="text-muted-foreground text-sm">Upload a photo and our Vision-AI will identify the waste type and severity for priority cleanup.</p>
       </div>
 
-      {/* Image Upload Area */}
       <div className="relative">
         {image ? (
           <div className="relative group rounded-3xl overflow-hidden aspect-video border-4 border-white shadow-2xl">
@@ -190,7 +209,6 @@ export function ReportForm() {
         />
       </div>
 
-      {/* AI Analysis Result Card */}
       {isAnalyzing && (
         <Card className="border-accent/20 bg-accent/5 animate-pulse rounded-2xl">
           <CardContent className="p-6 flex items-center gap-4">
