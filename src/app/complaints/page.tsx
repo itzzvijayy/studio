@@ -12,12 +12,14 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function ComplaintsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
 
+  // We only start the query if the user is authenticated (including anonymous)
+  // to satisfy the security rules 'request.auth != null'
   const complaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // We fetch all complaints to show the public feed
+    
     return query(
       collection(firestore, 'complaints'),
       orderBy('createdAt', 'desc')
@@ -59,9 +61,9 @@ export default function ComplaintsListPage() {
       {error && (
         <Alert variant="destructive" className="mb-8 rounded-2xl">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Access Issue</AlertTitle>
+          <AlertTitle>Permission Update Pending</AlertTitle>
           <AlertDescription>
-            We're having trouble loading the reports. This might be a temporary permission delay. Please refresh in a moment.
+            The system is syncing security updates. If this message persists, please refresh the page once your session is initialized.
           </AlertDescription>
         </Alert>
       )}
@@ -81,7 +83,7 @@ export default function ComplaintsListPage() {
           </div>
         </div>
 
-        {isLoading ? (
+        {(isLoading || isUserLoading) ? (
           <div className="flex justify-center py-20">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
           </div>
