@@ -13,10 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { aiWasteDetectionAndClassification } from '@/ai/flows/ai-waste-detection-and-classification-flow';
 import { aiComplaintSummaryFromText } from '@/ai/flows/ai-complaint-summary-from-text';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 export function ReportForm() {
   const [image, setImage] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiResult, setAiResult] = useState<any>(null);
@@ -64,13 +66,15 @@ export function ReportForm() {
   const handleGetLocation = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition((position) => {
-        setLocation({
+        const coords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        };
+        setLocation(coords);
+        setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
         toast({
           title: "Location Captured",
-          description: `Coordinates: ${position.coords.latitude.toFixed(4)}, ${position.coords.longitude.toFixed(4)}`,
+          description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
         });
       }, () => {
         toast({
@@ -217,8 +221,8 @@ export function ReportForm() {
             <Input 
               placeholder="e.g. Near Meenakshi Temple, West Tower" 
               className="h-12 rounded-xl"
-              value={location ? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : ''}
-              readOnly={!!location}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
             />
             <Button 
               type="button" 
