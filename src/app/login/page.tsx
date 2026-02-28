@@ -177,7 +177,7 @@ export default function LoginPage() {
                       <Input 
                         id="signup-phone" 
                         type="tel" 
-                        placeholder="+91 98765 43210" 
+                        placeholder="Your phone number" 
                         className="pl-10 h-12 rounded-xl"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
