@@ -1,15 +1,14 @@
-
 "use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth, useUser, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
-import { Loader2, Mail, Lock, User, ArrowRight, Leaf } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Leaf } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
@@ -22,7 +21,6 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // If already logged in with an email, redirect to profile
   if (user && !user.isAnonymous) {
     router.push('/profile');
     return null;
@@ -31,25 +29,56 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    initiateEmailSignIn(auth, email, password);
-    // Note: Success is handled by the onAuthStateChanged listener in the provider
-    // We just show a small toast for the attempt
+    
+    // Call the non-blocking function and handle the error locally to prevent app crash
+    initiateEmailSignIn(auth, email, password)
+      .catch((error: any) => {
+        setIsSubmitting(false);
+        let message = "Could not sign you in. Please check your credentials.";
+        if (error.code === 'auth/invalid-credential') {
+          message = "Invalid email or password. Please try again.";
+        } else if (error.code === 'auth/user-not-found') {
+          message = "No citizen account found with this email.";
+        }
+        
+        toast({
+          title: "Login Failed",
+          description: message,
+          variant: "destructive",
+        });
+      });
+
     toast({
       title: "Authenticating...",
       description: "Checking your citizen credentials.",
     });
-    setTimeout(() => setIsSubmitting(false), 2000);
   };
 
   const handleSignUp = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    initiateEmailSignUp(auth, email, password);
+    
+    initiateEmailSignUp(auth, email, password)
+      .catch((error: any) => {
+        setIsSubmitting(false);
+        let message = "We couldn't create your account. Please try again.";
+        if (error.code === 'auth/email-already-in-use') {
+          message = "This email is already registered as a Madurai Guardian.";
+        } else if (error.code === 'auth/weak-password') {
+          message = "Your password should be at least 6 characters long.";
+        }
+
+        toast({
+          title: "Sign Up Failed",
+          description: message,
+          variant: "destructive",
+        });
+      });
+
     toast({
       title: "Creating Account...",
       description: "Registering you as a new Madurai Guardian.",
     });
-    setTimeout(() => setIsSubmitting(false), 2000);
   };
 
   return (
