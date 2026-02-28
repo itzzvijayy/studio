@@ -7,16 +7,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth, useUser, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
-import { Loader2, Mail, Lock, User, Leaf } from 'lucide-react';
+import { useAuth, useUser, useFirestore, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
+import { Loader2, Mail, Lock, User, Leaf, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -30,7 +33,6 @@ export default function LoginPage() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Call the non-blocking function and handle the error locally to prevent app crash
     initiateEmailSignIn(auth, email, password)
       .catch((error: any) => {
         setIsSubmitting(false);
@@ -54,31 +56,44 @@ export default function LoginPage() {
     });
   };
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    initiateEmailSignUp(auth, email, password)
-      .catch((error: any) => {
-        setIsSubmitting(false);
-        let message = "We couldn't create your account. Please try again.";
-        if (error.code === 'auth/email-already-in-use') {
-          message = "This email is already registered as a Madurai Guardian.";
-        } else if (error.code === 'auth/weak-password') {
-          message = "Your password should be at least 6 characters long.";
-        }
+    try {
+      const userCredential = await initiateEmailSignUp(auth, email, password);
+      const newUser = userCredential.user;
 
-        toast({
-          title: "Sign Up Failed",
-          description: message,
-          variant: "destructive",
-        });
+      // Create the user profile document in Firestore
+      const userRef = doc(firestore, 'users', newUser.uid);
+      await setDoc(userRef, {
+        id: newUser.uid,
+        name: name,
+        email: email,
+        contactNumber: phone,
+        registeredDateTime: new Date().toISOString(),
       });
 
-    toast({
-      title: "Creating Account...",
-      description: "Registering you as a new Madurai Guardian.",
-    });
+      toast({
+        title: "Account Created",
+        description: "Welcome to the Madurai Guardian community!",
+      });
+      router.push('/profile');
+    } catch (error: any) {
+      setIsSubmitting(false);
+      let message = "We couldn't create your account. Please try again.";
+      if (error.code === 'auth/email-already-in-use') {
+        message = "This email is already registered as a Madurai Guardian.";
+      } else if (error.code === 'auth/weak-password') {
+        message = "Your password should be at least 6 characters long.";
+      }
+
+      toast({
+        title: "Sign Up Failed",
+        description: message,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -151,6 +166,21 @@ export default function LoginPage() {
                         className="pl-10 h-12 rounded-xl"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-phone">Contact Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input 
+                        id="signup-phone" 
+                        type="tel" 
+                        placeholder="+91 98765 43210" 
+                        className="pl-10 h-12 rounded-xl"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
                         required
                       />
                     </div>
