@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Camera, ClipboardList, User, Leaf } from 'lucide-react';
+import { Camera, ClipboardList, User, Leaf, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
 import { useEffect } from 'react';
@@ -14,6 +14,7 @@ export function Navbar() {
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
+    // Only auto-sign in if they aren't loading and have no user at all
     if (!isUserLoading && !user) {
       initiateAnonymousSignIn(auth);
     }
@@ -24,6 +25,8 @@ export function Navbar() {
     { label: 'Complaints', href: '/complaints', icon: ClipboardList },
     { label: 'Profile', href: '/profile', icon: User },
   ];
+
+  const showLogin = !isUserLoading && user?.isAnonymous;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t md:top-0 md:bottom-auto md:border-t-0 md:border-b shadow-sm">
@@ -60,6 +63,19 @@ export function Navbar() {
                 </Link>
               );
             })}
+
+            {showLogin && (
+              <Link
+                href="/login"
+                className={cn(
+                  "hidden md:flex items-center gap-2 px-4 py-2 text-sm font-bold bg-primary text-white rounded-full hover:bg-primary/90 transition-all shadow-md",
+                  pathname === '/login' && "hidden"
+                )}
+              >
+                <LogIn className="w-4 h-4" />
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </div>

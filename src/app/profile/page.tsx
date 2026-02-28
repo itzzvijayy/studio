@@ -1,24 +1,33 @@
 
 "use client";
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail } from 'lucide-react';
+import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, useCollection, useDoc, useMemoFirebase, useAuth, setDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { WasteComplaint } from '@/lib/types';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { signOut } from 'firebase/auth';
 
 export default function ProfilePage() {
   const avatarImg = PlaceHolderImages.find(img => img.id === 'avatar-user');
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
 
   // Fetch the specific UserProfile document
   const profileRef = useMemoFirebase(() => {
@@ -28,11 +37,18 @@ export default function ProfilePage() {
 
   const { data: profileDoc, isLoading: isProfileLoading } = useDoc(profileRef);
 
+  useEffect(() => {
+    if (profileDoc) {
+      setEditName(profileDoc.name || '');
+      setEditPhone(profileDoc.contactNumber || '');
+    } else if (user && !profileDoc) {
+      setEditName(user.displayName || 'Madurai Citizen');
+    }
+  }, [profileDoc, user]);
+
   // Fetch user's complaints
   const userComplaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // We remove the orderBy here to avoid requiring a composite index in Firestore
-    // We will sort the results client-side instead.
     return query(
       collection(firestore, 'complaints'),
       where('userId', '==', user.uid)
@@ -41,7 +57,6 @@ export default function ProfilePage() {
 
   const { data: userComplaints, isLoading: isComplaintsLoading } = useCollection<WasteComplaint>(userComplaintsQuery);
 
-  // Client-side sorting to ensure data shows up without index issues
   const sortedComplaints = useMemo(() => {
     if (!userComplaints) return [];
     return [...userComplaints].sort((a, b) => 
@@ -51,6 +66,30 @@ export default function ProfilePage() {
 
   const resolvedCount = userComplaints?.filter(c => c.status === 'resolved').length || 0;
   const totalCount = userComplaints?.length || 0;
+
+  const handleSaveProfile = () => {
+    if (!profileRef || !user) return;
+    
+    const updatedData = {
+      id: user.uid,
+      name: editName,
+      contactNumber: editPhone,
+      email: user.email || '',
+      registeredDateTime: profileDoc?.registeredDateTime || new Date().toISOString(),
+    };
+
+    setDocumentNonBlocking(profileRef, updatedData, { merge: true });
+    setIsEditing(false);
+    toast({
+      title: "Profile Updated",
+      description: "Your citizen record has been successfully updated.",
+    });
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    window.location.reload();
+  };
 
   if (isUserLoading) {
     return (
@@ -65,8 +104,10 @@ export default function ProfilePage() {
     return (
       <div className="container py-20 text-center">
         <h2 className="text-2xl font-bold mb-4">Citizen Session Required</h2>
-        <p className="text-muted-foreground mb-6">Please wait while we initialize your secure Madurai reporting session.</p>
-        <Button onClick={() => window.location.reload()}>Refresh Session</Button>
+        <p className="text-muted-foreground mb-6">Please log in to manage your Madurai cleanup profile.</p>
+        <Button asChild>
+          <Link href="/login">Go to Login</Link>
+        </Button>
       </div>
     );
   }
@@ -75,29 +116,64 @@ export default function ProfilePage() {
     <div className="container px-4 py-8 md:py-12 max-w-4xl">
       <div className="flex flex-col gap-10">
         <div className="relative">
-          <div className="h-48 rounded-3xl bg-gradient-to-r from-primary to-accent overflow-hidden relative">
+          <div className="h-48 rounded-3xl bg-gradient-to-r from-primary to-accent overflow-hidden relative shadow-lg">
              <div className="absolute inset-0 opacity-20 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/leaf.png')]"></div>
              <div className="absolute bottom-4 right-6 text-white/40 text-xs font-bold uppercase tracking-widest">Madurai District Hero</div>
           </div>
           <div className="absolute -bottom-8 left-8 flex items-end gap-6">
             <Avatar className="h-32 w-32 border-4 border-white shadow-2xl rounded-3xl bg-white">
               <AvatarImage src={avatarImg?.imageUrl} />
-              <AvatarFallback className="text-4xl bg-secondary text-primary">{user?.displayName?.[0] || 'C'}</AvatarFallback>
+              <AvatarFallback className="text-4xl bg-secondary text-primary uppercase">{editName?.[0] || 'C'}</AvatarFallback>
             </Avatar>
             <div className="pb-2 text-white md:text-foreground">
-               <h1 className="text-3xl font-bold tracking-tight shadow-sm md:shadow-none">
-                {profileDoc?.name || user?.displayName || 'Madurai Citizen'}
-               </h1>
-               <div className="flex items-center gap-2 text-blue-100 md:text-muted-foreground font-medium">
-                 <ShieldCheck className="w-4 h-4" />
-                 <span>Guardian of the Temple City</span>
-               </div>
+               {isEditing ? (
+                 <div className="space-y-2 mb-2">
+                    <Input 
+                      value={editName} 
+                      onChange={(e) => setEditName(e.target.value)} 
+                      placeholder="Display Name"
+                      className="bg-white/90 backdrop-blur-sm text-black font-bold text-xl h-10 w-64 rounded-xl"
+                    />
+                    <Input 
+                      value={editPhone} 
+                      onChange={(e) => setEditPhone(e.target.value)} 
+                      placeholder="Contact Number"
+                      className="bg-white/90 backdrop-blur-sm text-black font-medium h-8 w-48 rounded-lg text-xs"
+                    />
+                 </div>
+               ) : (
+                 <>
+                  <h1 className="text-3xl font-bold tracking-tight shadow-sm md:shadow-none bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg">
+                    {profileDoc?.name || user?.displayName || editName}
+                  </h1>
+                  <div className="flex items-center gap-2 text-blue-100 md:text-muted-foreground font-medium bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg mt-1">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Guardian of the Temple City</span>
+                  </div>
+                 </>
+               )}
             </div>
           </div>
-          <div className="absolute -bottom-8 right-8">
-             <Button variant="outline" className="rounded-full bg-white shadow-md border-none hover:bg-gray-50">
-               <Settings className="w-4 h-4 mr-2" /> Settings
-             </Button>
+          <div className="absolute -bottom-8 right-8 flex gap-2">
+             {isEditing ? (
+               <>
+                 <Button onClick={handleSaveProfile} className="rounded-full bg-primary shadow-md border-none hover:bg-primary/90 text-white">
+                   <Check className="w-4 h-4 mr-2" /> Save
+                 </Button>
+                 <Button variant="outline" onClick={() => setIsEditing(false)} className="rounded-full bg-white shadow-md border-none hover:bg-gray-50 text-destructive">
+                   <X className="w-4 h-4" />
+                 </Button>
+               </>
+             ) : (
+               <>
+                <Button variant="outline" onClick={() => setIsEditing(true)} className="rounded-full bg-white shadow-md border-none hover:bg-gray-50">
+                  <Edit2 className="w-4 h-4 mr-2" /> Edit
+                </Button>
+                <Button variant="ghost" onClick={handleLogout} className="rounded-full hover:bg-destructive/10 text-destructive">
+                  <LogOut className="w-4 h-4" />
+                </Button>
+               </>
+             )}
           </div>
         </div>
 
@@ -169,40 +245,35 @@ export default function ProfilePage() {
                    </Button>
                  </div>
                )}
-               
-               {totalCount > 5 && (
-                 <Button asChild variant="ghost" className="w-full text-muted-foreground hover:text-primary py-6 border-2 border-dashed border-gray-100 rounded-2xl">
-                   <Link href="/complaints">View All My Activity ({totalCount})</Link>
-                 </Button>
-               )}
              </div>
           </div>
 
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold px-2">Hero Progress</h2>
+            <h2 className="text-2xl font-bold px-2">Account Details</h2>
             <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white">
-              <CardContent className="p-6 space-y-6">
-                {[
-                  { title: 'Temple Guardian', desc: 'Report 10 issues', progress: Math.min((totalCount / 10) * 100, 100), icon: ShieldCheck },
-                  { title: 'Cleanup Hero', desc: 'Resolve 5 spots', progress: Math.min((resolvedCount / 5) * 100, 100), icon: Leaf },
-                  { title: 'Active Citizen', desc: 'Maintain streak', progress: totalCount > 0 ? 30 : 0, icon: Award },
-                ].map((badge, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center shrink-0">
-                      <badge.icon className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-sm">{badge.title}</h4>
-                        <span className="text-[10px] font-bold text-primary">{Math.round(badge.progress)}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${badge.progress}%` }}></div>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground">{badge.desc}</p>
-                    </div>
-                  </div>
-                ))}
+              <CardContent className="p-6 space-y-4">
+                 <div className="flex items-center gap-3">
+                   <Mail className="w-4 h-4 text-muted-foreground" />
+                   <div className="text-sm">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Email Address</p>
+                      <p className="font-medium">{user.email || 'No email associated'}</p>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-3">
+                   <Phone className="w-4 h-4 text-muted-foreground" />
+                   <div className="text-sm">
+                      <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Contact Number</p>
+                      <p className="font-medium">{profileDoc?.contactNumber || editPhone || 'Not provided'}</p>
+                   </div>
+                 </div>
+                 {user.isAnonymous && (
+                   <div className="pt-4 mt-4 border-t">
+                      <p className="text-xs text-muted-foreground mb-3 leading-relaxed">You are currently in a temporary citizen session. Create an account to preserve your impact history.</p>
+                      <Button asChild variant="secondary" className="w-full rounded-xl">
+                        <Link href="/login">Upgrade Account</Link>
+                      </Button>
+                   </div>
+                 )}
               </CardContent>
             </Card>
 
