@@ -59,6 +59,7 @@ export default function ProfilePage() {
 
   const sortedComplaints = useMemo(() => {
     if (!userComplaints) return [];
+    // Client-side sort to avoid index requirements for now
     return [...userComplaints].sort((a, b) => 
       new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
@@ -121,8 +122,8 @@ export default function ProfilePage() {
              <div className="absolute bottom-4 right-6 text-white/40 text-xs font-bold uppercase tracking-widest">Madurai District Hero</div>
           </div>
           <div className="absolute -bottom-8 left-8 flex items-end gap-6">
-            <Avatar className="h-32 w-32 border-4 border-white shadow-2xl rounded-3xl bg-white">
-              <AvatarImage src={avatarImg?.imageUrl} />
+            <Avatar className="h-32 w-32 border-4 border-white shadow-2xl rounded-3xl bg-white overflow-hidden">
+              <AvatarImage src={avatarImg?.imageUrl} className="object-cover" />
               <AvatarFallback className="text-4xl bg-secondary text-primary uppercase">{editName?.[0] || 'C'}</AvatarFallback>
             </Avatar>
             <div className="pb-2 text-white md:text-foreground">

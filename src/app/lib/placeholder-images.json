@@ -1,3 +1,4 @@
+
 {
   "placeholderImages": [
     {
@@ -20,9 +21,9 @@
     },
     {
       "id": "avatar-user",
-      "description": "A proactive local citizen dedicated to Madurai's cleanliness",
-      "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-      "imageHint": "Indian face"
+      "description": "Official Madurai Heritage Guardian Logo",
+      "imageUrl": "https://images.unsplash.com/photo-1627662168480-164479619627?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400",
+      "imageHint": "Temple silhouette"
     }
   ]
 }
