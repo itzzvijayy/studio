@@ -60,7 +60,7 @@ export default function ComplaintsListPage() {
         </div>
       </div>
 
-      {error && (
+      {error && !isUserLoading && (
         <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/50 bg-destructive/5">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Establishing Secure Session</AlertTitle>
