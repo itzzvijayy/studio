@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Green city park in Madurai",
+      "imageUrl": "https://images.unsplash.com/photo-1587541984362-f1cbdce5a3c1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxncmVlbiUyMHBhcmt8ZW58MHx8fHwxNzcyMjQ1ODM3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "green park"
+    },
+    {
+      "id": "waste-plastic",
+      "description": "Plastic waste on a street",
+      "imageUrl": "https://images.unsplash.com/photo-1618580298796-8c681e026369?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwbGFzdGljJTIwd2FzdGV8ZW58MHx8fHwxNzcyMTg3OTY5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "plastic waste"
+    },
+    {
+      "id": "waste-organic",
+      "description": "Organic waste pile",
+      "imageUrl": "https://images.unsplash.com/photo-1537541412475-47335a7c1f9d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxvcmdhbmljJTIwd2FzdGV8ZW58MHx8fHwxNzcyMjA0Mjc5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "organic waste"
+    },
+    {
+      "id": "avatar-user",
+      "description": "User profile avatar",
+      "imageUrl": "https://images.unsplash.com/photo-1701615004837-40d8573b6652?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHx1c2VyJTIwYXZhdGFyfGVufDB8fHx8MTc3MjE4NzI2MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "user avatar"
+    }
+  ]
 }

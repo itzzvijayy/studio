@@ -1,14 +1,16 @@
 
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MOCK_COMPLAINTS } from '@/lib/mock-data';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Settings, Leaf, MapPin, Award, Trash2, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const avatarImg = PlaceHolderImages.find(img => img.id === 'avatar-user');
