@@ -28,13 +28,39 @@ export function ReportForm() {
   const { toast } = useToast();
   const router = useRouter();
 
+  const handleGetLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const coords = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setLocation(coords);
+        setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
+        toast({
+          title: "Location Captured",
+          description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+        });
+      }, () => {
+        toast({
+          title: "Location Error",
+          description: "Could not retrieve your current location.",
+          variant: "destructive",
+        });
+      });
+    }
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImage(reader.result as string);
-        runAiAnalysis(reader.result as string);
+        const dataUri = reader.result as string;
+        setImage(dataUri);
+        runAiAnalysis(dataUri);
+        // Automatically fetch location when photo is added
+        handleGetLocation();
       };
       reader.readAsDataURL(file);
     }
@@ -60,29 +86,6 @@ export function ReportForm() {
       });
     } finally {
       setIsAnalyzing(false);
-    }
-  };
-
-  const handleGetLocation = () => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const coords = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setLocation(coords);
-        setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
-        toast({
-          title: "Location Captured",
-          description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
-        });
-      }, () => {
-        toast({
-          title: "Location Error",
-          description: "Could not retrieve your current location.",
-          variant: "destructive",
-        });
-      });
     }
   };
 
