@@ -1,0 +1,167 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user account within the Vision-AI Clean Madurai application. Stores personal details and serves as the anchor for user-submitted complaints.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the user, used for contact and potentially notifications.",
+          "format": "email"
+        },
+        "contactNumber": {
+          "type": "string",
+          "description": "The contact phone number of the user."
+        },
+        "registeredDateTime": {
+          "type": "string",
+          "description": "The date and time when the user's profile was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "registeredDateTime"
+      ]
+    },
+    "Complaint": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Complaint",
+      "type": "object",
+      "description": "Represents a waste complaint submitted by a user, including details, location, uploaded images, and AI analysis results.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Complaint entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to UserProfile. Identifies the user who submitted this complaint. (Relationship: UserProfile 1:N Complaint)"
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed textual description of the waste and environmental concern provided by the user."
+        },
+        "latitude": {
+          "type": "number",
+          "description": "The geographic latitude coordinate of the waste location."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "The geographic longitude coordinate of the waste location."
+        },
+        "imageUrls": {
+          "type": "array",
+          "description": "An array of URLs pointing to the images of the waste uploaded by the user.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "submissionDateTime": {
+          "type": "string",
+          "description": "The date and time when the complaint was initially submitted.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The current processing status of the complaint (e.g., 'Submitted', 'Under Review', 'Processing AI', 'Resolved', 'Rejected')."
+        },
+        "wasteDetected": {
+          "type": "boolean",
+          "description": "Boolean flag indicating whether the AI analysis detected waste in the uploaded images."
+        },
+        "wasteType": {
+          "type": "string",
+          "description": "The classification of the detected waste type by the AI (e.g., 'Plastic', 'Organic', 'Mixed', 'Hazardous', 'Unknown')."
+        },
+        "severity": {
+          "type": "string",
+          "description": "The severity level of the waste determined by the AI (e.g., 'Low', 'Medium', 'High', 'Critical')."
+        },
+        "analysisDateTime": {
+          "type": "string",
+          "description": "The date and time when the AI analysis for this complaint was completed.",
+          "format": "date-time"
+        },
+        "resolutionDetails": {
+          "type": "string",
+          "description": "Additional notes or details provided by administrators regarding the resolution of the complaint."
+        },
+        "resolvedDateTime": {
+          "type": "string",
+          "description": "The date and time when the complaint was officially marked as resolved.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "description",
+        "latitude",
+        "longitude",
+        "imageUrls",
+        "submissionDateTime",
+        "status",
+        "wasteDetected",
+        "wasteType",
+        "severity",
+        "analysisDateTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores individual user profiles. Access is strictly private, meaning only the authenticated user matching '{userId}' can read or modify their own profile. This structure ensures path-based ownership for secure user data management.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, matching `request.auth.uid`."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/complaints/{complaintId}",
+        "definition": {
+          "entityName": "Complaint",
+          "schema": {
+            "$ref": "#/backend/entities/Complaint"
+          },
+          "description": "Contains all waste complaint submissions. Each document includes a denormalized 'userId' field to explicitly link the complaint to its submitter. This 'userId' enables authorization independence, allowing security rules to verify ownership without requiring a 'get()' call to the parent user profile. It also facilitates secure, QAP-compliant listing of user-specific complaints by enforcing a `where('userId', '==', request.auth.uid)` query constraint in security rules.",
+          "params": [
+            {
+              "name": "complaintId",
+              "description": "The unique identifier for a specific waste complaint."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure prioritizes secure, scalable, and debuggable access to user profiles and their submitted complaints, adhering to the core design principles.\n\n**Authorization Independence:**\n1.  **User Profiles (`/users/{userId}`):** Authorization for `UserProfile` documents is achieved directly through the path-based ownership. The `userId` in the path segment (`/users/{userId}`) inherently links the document to the authenticated user (`request.auth.uid`). This eliminates the need for any `get()` operations in security rules to determine ownership, as the owner's UID is part of the document's explicit path.\n2.  **Complaints (`/complaints/{complaintId}`):** Each `Complaint` document explicitly includes a `userId` field. This denormalizes the ownership information directly into the complaint document itself. Consequently, security rules for `Complaint` documents (e.g., `resource.data.userId == request.auth.uid`) do not require any `get()` calls to a parent `UserProfile` document to ascertain ownership. This ensures that operations on a complaint are atomic and independent of other documents, greatly simplifying rule writing and debugging.\n\n**QAPs (Rules are not Filters) for Secure List Operations:**\n1.  **User Profiles:** For the `/users/{userId}` collection, `list` operations are typically restricted or disallowed for general users, or are only permitted for administrators. If `list` were allowed, security rules would enforce specific query constraints to prevent unauthorized data exposure, or simply deny the operation.\n2.  **Complaints:** The `/complaints/{complaintId}` collection is designed to support QAPs for listing. While an authenticated user can perform a `list` operation, Firestore security rules will be configured to enforce that any `list` query must include a `where('userId', '==', request.auth.uid)` clause. This mechanism ensures that clients can only query for and retrieve complaints that belong to the currently authenticated user. The security rule acts as a validator for the query, preventing a client from issuing a broad `list` request and then attempting to 'filter' the results client-side. Instead, the server-side rule guarantees that only relevant, authorized data is returned. This approach makes `list` operations secure, robust, and aligned with the principle that rules are not filters."
+  }
+}
