@@ -4,35 +4,32 @@ service cloud.firestore {
 
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
-     * Ensuring public visibility for city cleanup reports while protecting user data.
-     * Split 'read' into 'get' and 'list' for explicit permission handling.
-     * Deployment Trigger: 2024-05-20T14:30:00Z-v10
+     * Version: 2024-05-20T17:15:00Z
+     * Purpose: Ensure public visibility for city cleanup reports while protecting user identities.
      */
 
-    // --- COLLECTION RULES ---
-
+    // --- USER PROFILES ---
     match /users/{userId} {
-      // Allow users to manage their own profile data
+      // Users can manage their own profile. Listing all users is disabled for privacy.
       allow get, write: if request.auth != null && request.auth.uid == userId;
-      // Prevent listing all users for privacy
       allow list: if false;
     }
 
+    // --- WASTE COMPLAINTS ---
     match /complaints/{complaintId} {
-      // Explicitly allow both fetching a single report and listing the collection
-      // for any authenticated citizen (including anonymous users)
-      allow get: if request.auth != null;
-      allow list: if request.auth != null;
+      // allow read covers both 'get' (single doc) and 'list' (collection queries)
+      // Any authenticated user (including anonymous) can view the public feed.
+      allow read: if request.auth != null;
 
-      // Allow report creation if the user is authenticated
+      // Authenticated users can submit new reports.
       allow create: if request.auth != null;
 
-      // Only allow the original reporter to update or delete their entry
-      // This uses the 'userId' field stored within the document
+      // Only the original reporter can update or delete their report.
+      // This is secured by checking the 'userId' field in the document data.
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // --- DEFAULT DENY ---
+    // --- GLOBAL DENY ---
     match /{path=**} {
       allow read, write: if false;
     }

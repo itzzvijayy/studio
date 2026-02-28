@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { ComplaintCard } from '@/components/waste/ComplaintCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, ClipboardList, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Filter, ClipboardList, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { WasteComplaint } from '@/lib/types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 export default function ComplaintsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +19,7 @@ export default function ComplaintsListPage() {
   // We only start the query if the user is authenticated (including anonymous)
   // to satisfy the security rules 'request.auth != null'
   const complaintsQuery = useMemoFirebase(() => {
+    // Ensure both firestore and user are initialized before querying
     if (!firestore || !user) return null;
     
     return query(
@@ -59,11 +61,19 @@ export default function ComplaintsListPage() {
       </div>
 
       {error && (
-        <Alert variant="destructive" className="mb-8 rounded-2xl">
+        <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/50 bg-destructive/5">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Permission Update Pending</AlertTitle>
-          <AlertDescription>
-            The system is syncing security updates. If this message persists, please refresh the page once your session is initialized.
+          <AlertTitle>Syncing Secure Connection</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <p>The system is initializing your secure citizen session. If you still see this after a few seconds, please refresh.</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-fit gap-2 rounded-full border-destructive/20 hover:bg-destructive/10"
+              onClick={() => window.location.reload()}
+            >
+              <RefreshCw className="w-3 h-3" /> Refresh Feed
+            </Button>
           </AlertDescription>
         </Alert>
       )}
