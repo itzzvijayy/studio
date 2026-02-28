@@ -14,6 +14,12 @@ export interface UserProfile {
   registeredDateTime: string;
 }
 
+export interface UserFeedback {
+  rating: number;
+  comment: string;
+  submittedAt: string;
+}
+
 export interface WasteComplaint {
   id: string;
   userId: string;
@@ -36,5 +42,6 @@ export interface WasteComplaint {
   status: ComplaintStatus;
   resolutionDetails?: string;
   resolvedDateTime?: string;
+  userFeedback?: UserFeedback;
   createdAt: string;
 }

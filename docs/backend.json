@@ -117,6 +117,14 @@
           "type": "string",
           "description": "The date and time when the complaint was marked as resolved.",
           "format": "date-time"
+        },
+        "userFeedback": {
+          "type": "object",
+          "properties": {
+            "rating": { "type": "number" },
+            "comment": { "type": "string" },
+            "submittedAt": { "type": "string", "format": "date-time" }
+          }
         }
       },
       "required": [

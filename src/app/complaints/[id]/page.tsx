@@ -6,14 +6,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck, Clock } from 'lucide-react';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck, Clock, Star } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useFirestore, useDoc, useMemoFirebase, useUser, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
-import { WasteComplaint, UserProfile, ComplaintStatus } from '@/lib/types';
+import { WasteComplaint, UserProfile, ComplaintStatus, UserFeedback } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
 export default function ComplaintDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +23,9 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const { toast } = useToast();
   
   const [workerReply, setWorkerReply] = useState('');
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
   
   const complaintRef = useMemoFirebase(() => {
     if (!firestore || !id) return null;
@@ -67,6 +70,25 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     });
   };
 
+  const handleSubmitFeedback = () => {
+    if (!complaintRef || feedbackRating === 0) return;
+    
+    setIsSubmittingFeedback(true);
+    const feedback: UserFeedback = {
+      rating: feedbackRating,
+      comment: feedbackComment,
+      submittedAt: new Date().toISOString(),
+    };
+
+    updateDocumentNonBlocking(complaintRef, { userFeedback: feedback });
+    
+    toast({
+      title: "Feedback Received",
+      description: "Thank you for helping us maintain the quality of our heritage cleanup services.",
+    });
+    setIsSubmittingFeedback(false);
+  };
+
   if (isLoading) {
     return (
       <div className="container py-20 flex justify-center">
@@ -87,6 +109,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const isWorker = profileDoc?.role === 'worker';
+  const isOwner = user?.uid === complaint.userId;
   const statusInfo = {
     pending: { icon: AlertCircle, color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Reported' },
     'in-progress': { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Action Taken' },
@@ -97,7 +120,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const StatusIcon = currentStatus.icon;
 
   return (
-    <div className="container px-4 py-8 md:py-12 max-w-5xl">
+    <div className="container px-4 py-8 md:py-12 max-w-5xl pb-32">
       <Button asChild variant="ghost" className="mb-6 hover:bg-transparent hover:text-primary p-0">
         <Link href="/complaints" className="flex items-center gap-2 font-semibold">
           <ArrowLeft className="w-5 h-5" />
@@ -202,6 +225,83 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                     </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Citizen Feedback Form (Only for the reporter when resolved) */}
+          {complaint.status === 'resolved' && isOwner && !complaint.userFeedback && (
+            <Card className="border-2 border-primary/20 bg-primary/5 rounded-3xl overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4 text-primary">
+                  <Sparkles className="w-5 h-5" />
+                  <h3 className="font-bold">How was the Cleanup?</h3>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button 
+                        key={star} 
+                        onClick={() => setFeedbackRating(star)}
+                        className="transition-transform active:scale-90"
+                      >
+                        <Star className={cn(
+                          "w-10 h-10",
+                          feedbackRating >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                        )} />
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-muted-foreground ml-1">Your Feedback (Optional)</label>
+                    <Textarea 
+                      placeholder="Share your experience with the cleanup crew..."
+                      value={feedbackComment}
+                      onChange={(e) => setFeedbackComment(e.target.value)}
+                      className="rounded-xl bg-white border-gray-200"
+                    />
+                  </div>
+
+                  <Button 
+                    className="w-full rounded-xl h-12 font-bold"
+                    onClick={handleSubmitFeedback}
+                    disabled={feedbackRating === 0 || isSubmittingFeedback}
+                  >
+                    {isSubmittingFeedback ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : "Submit Feedback"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* User Feedback Display */}
+          {complaint.userFeedback && (
+            <Card className="rounded-3xl border-2 border-yellow-100 bg-yellow-50/20 overflow-hidden shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                    <h3 className="font-bold text-yellow-900">Citizen Satisfaction</h3>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star key={star} className={cn(
+                        "w-4 h-4",
+                        complaint.userFeedback!.rating >= star ? "fill-yellow-400 text-yellow-400" : "text-gray-200"
+                      )} />
+                    ))}
+                  </div>
+                </div>
+                {complaint.userFeedback.comment && (
+                  <div className="bg-white/80 p-4 rounded-2xl border border-yellow-50 shadow-inner italic text-gray-700">
+                    &quot;{complaint.userFeedback.comment}&quot;
+                  </div>
+                )}
+                <p className="text-[10px] uppercase font-bold text-yellow-600/60 mt-3 text-right">
+                  Feedback provided on {format(new Date(complaint.userFeedback.submittedAt), 'MMM d, yyyy')}
+                </p>
               </CardContent>
             </Card>
           )}
