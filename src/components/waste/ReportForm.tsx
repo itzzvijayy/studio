@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from 'react';
@@ -40,12 +39,13 @@ export function ReportForm() {
           lng: position.coords.longitude
         };
         setLocation(coords);
-        if (!address || address.includes(',')) {
+        // Automatically update address field if empty or showing coordinates
+        if (!address || /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(address)) {
           setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
         }
         toast({
           title: "Location Captured",
-          description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
+          description: `Captured precise coordinates for cleanup.`,
         });
       }, () => {
         toast({
@@ -65,7 +65,7 @@ export function ReportForm() {
         const dataUri = reader.result as string;
         setImage(dataUri);
         runAiAnalysis(dataUri);
-        handleGetLocation();
+        handleGetLocation(); // Auto-trigger location capture on photo selection
       };
       reader.readAsDataURL(file);
     }
@@ -80,17 +80,10 @@ export function ReportForm() {
       if (result.wasteDetected && result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
-
-      if (!result.wasteDetected) {
-        toast({
-          title: "No Waste Detected",
-          description: "Our AI didn't find clear waste in this image. You can still describe it manually.",
-        });
-      }
     } catch (error) {
       console.error('AI Analysis Error:', error);
       toast({
-        title: "Analysis Failed",
+        title: "Analysis Error",
         description: "Vision-AI encountered an error. You can still report manually.",
         variant: "destructive",
       });
@@ -103,19 +96,19 @@ export function ReportForm() {
     e.preventDefault();
     
     if (!image) {
-      toast({ title: "Image Required", description: "Please take or upload a photo of the waste.", variant: "destructive" });
+      toast({ title: "Photo Needed", description: "Please take or upload a photo of the waste.", variant: "destructive" });
       return;
     }
     if (!address) {
-      toast({ title: "Location Required", description: "Please provide a location or address.", variant: "destructive" });
+      toast({ title: "Location Needed", description: "Please provide a location or address.", variant: "destructive" });
       return;
     }
     if (!description || description.length < 5) {
-      toast({ title: "Description Required", description: "Please provide a brief description of the issue.", variant: "destructive" });
+      toast({ title: "Details Needed", description: "Please provide a brief description of the issue.", variant: "destructive" });
       return;
     }
     if (!user) {
-      toast({ title: "Session Error", description: "You must be signed in to submit a report.", variant: "destructive" });
+      toast({ title: "Not Signed In", description: "Wait a moment while we sign you in...", variant: "destructive" });
       return;
     }
 
@@ -125,15 +118,15 @@ export function ReportForm() {
       
       const newComplaint = {
         userId: user.uid,
-        userName: user.displayName || 'Anonymous Citizen',
-        imageUrl: image, // Note: In production, images should be uploaded to Storage first.
+        userName: user.displayName || 'Madurai Citizen',
+        imageUrl: image,
         location: location ? { ...location, address } : { lat: 0, lng: 0, address },
         description: description,
         aiSummary: summaryResult.summary,
         aiKeyDetails: summaryResult.keyDetails,
         aiAnalysis: {
-          wasteDetected: aiResult?.wasteDetected ?? false,
-          wasteType: aiResult?.wasteType ?? 'unknown',
+          wasteDetected: aiResult?.wasteDetected ?? true,
+          wasteType: aiResult?.wasteType ?? 'mixed',
           severity: aiResult?.severity ?? 'medium',
           analysisDetails: aiResult?.analysisDetails ?? description,
         },
@@ -141,18 +134,18 @@ export function ReportForm() {
         createdAt: new Date().toISOString(),
       };
 
-      addDocumentNonBlocking(collection(firestore, 'complaints'), newComplaint);
+      await addDocumentNonBlocking(collection(firestore, 'complaints'), newComplaint);
       
       toast({
-        title: "Report Received",
-        description: "Thank you for helping keep Madurai clean! We've received your report.",
+        title: "Report Submitted",
+        description: "Your report is live! Thank you for keeping Madurai clean.",
       });
       router.push('/complaints');
     } catch (error) {
       console.error('Submission Error:', error);
       toast({
-        title: "Submission Failed",
-        description: "We couldn't process your report right now.",
+        title: "Submission Error",
+        description: "We couldn't process your report right now. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -163,8 +156,8 @@ export function ReportForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto pb-10">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold tracking-tight">Report Waste</h2>
-        <p className="text-muted-foreground text-sm">Upload a photo and our Vision-AI will identify the waste type and severity for priority cleanup.</p>
+        <h2 className="text-2xl font-bold tracking-tight">Report Cleanup Needed</h2>
+        <p className="text-muted-foreground text-sm">Upload a photo from your location in Madurai and our AI will coordinate cleanup priority.</p>
       </div>
 
       <div className="relative">
@@ -172,7 +165,7 @@ export function ReportForm() {
           <div className="relative group rounded-3xl overflow-hidden aspect-video border-4 border-white shadow-2xl">
             <Image 
               src={image} 
-              alt="Uploaded waste" 
+              alt="Waste at location" 
               fill 
               className="object-cover"
             />
@@ -196,8 +189,8 @@ export function ReportForm() {
             <div className="p-4 bg-primary text-white rounded-full mb-4 shadow-lg group-hover:scale-110 transition-transform">
               <Camera className="w-8 h-8" />
             </div>
-            <p className="font-semibold text-lg">Capture Photo</p>
-            <p className="text-sm text-muted-foreground mt-1">Tap to open camera or gallery</p>
+            <p className="font-semibold text-lg">Take or Upload Photo</p>
+            <p className="text-sm text-muted-foreground mt-1">AI will analyze the image for waste classification</p>
           </div>
         )}
         <input 
@@ -214,8 +207,8 @@ export function ReportForm() {
           <CardContent className="p-6 flex items-center gap-4">
             <Loader2 className="w-6 h-6 animate-spin text-accent" />
             <div className="space-y-1">
-              <p className="font-semibold text-accent">AI Analysis in progress...</p>
-              <p className="text-xs text-muted-foreground">Identifying waste and assessing environmental impact</p>
+              <p className="font-semibold text-accent">Vision-AI is Analyzing...</p>
+              <p className="text-xs text-muted-foreground">Identifying waste types and assessing severity</p>
             </div>
           </CardContent>
         </Card>
@@ -252,12 +245,12 @@ export function ReportForm() {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cleanup Site Location</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Site Address or Landmarks</label>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="e.g. Near Meenakshi Temple, West Tower" 
+                placeholder="e.g. Near Meenakshi Temple, Madurai" 
                 className="h-12 rounded-xl pl-10"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -277,7 +270,7 @@ export function ReportForm() {
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Citizen Description</label>
           <Textarea 
-            placeholder="Help us understand the situation better..." 
+            placeholder="Help the cleanup team by describing the situation..." 
             className="min-h-[120px] rounded-2xl p-4 resize-none"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -292,7 +285,7 @@ export function ReportForm() {
           {isSubmitting ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Sending Report...
+              Submitting Report...
             </>
           ) : (
             <>

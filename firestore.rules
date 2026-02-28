@@ -4,60 +4,25 @@ service cloud.firestore {
 
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
-     *
-     * Updated to allow public reading of complaints by signed-in users,
-     * while maintaining strict ownership for creating and modifying reports.
-     * Triggering deployment: 2024-05-20-v2
+     * Simplified rules to ensure public visibility of city reports.
+     * Triggering deployment: 2024-05-20-v3
      */
-
-    // --- GLOBAL HELPER FUNCTIONS ---
-
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function incomingData() {
-      return request.resource.data;
-    }
-
-    function existingData() {
-      return resource.data;
-    }
 
     // --- COLLECTION RULES ---
 
-    /**
-     * @path /users/{userId}
-     * Private profiles: only the user can read/write their own document.
-     */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId) && incomingData().id == userId;
-      allow update: if isOwner(userId) && incomingData().id == existingData().id;
-      allow delete: if isOwner(userId);
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    /**
-     * @path /complaints/{complaintId}
-     * Complaints: Publicly readable by all signed-in citizens,
-     * but only the original reporter can update or delete.
-     */
     match /complaints/{complaintId} {
-      
-      // Allow any signed-in user to see all reports. 
-      // This supports the "Public Reports" transparency goal.
-      allow read: if isSignedIn();
+      // Allow any signed-in citizen to see the city's cleanup progress
+      allow read: if request.auth != null;
 
-      // Ensure new complaints are correctly linked to the submitter.
-      allow create: if isSignedIn() && incomingData().userId == request.auth.uid;
+      // Allow report creation if the user is authenticated
+      allow create: if request.auth != null;
 
-      // Only the submitter can update or delete their own reports.
-      allow update, delete: if isSignedIn() && existingData().userId == request.auth.uid;
+      // Only allow the original reporter to update or delete their entry
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
     // --- DEFAULT DENY ---

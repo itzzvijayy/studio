@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -17,8 +16,6 @@ export default function ComplaintsListPage() {
 
   const complaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // We now fetch ALL complaints to show a public community feed,
-    // while keeping the user's specific activity in their profile.
     return query(
       collection(firestore, 'complaints'),
       orderBy('createdAt', 'desc')
@@ -27,11 +24,13 @@ export default function ComplaintsListPage() {
 
   const { data: complaints, isLoading } = useCollection<WasteComplaint>(complaintsQuery);
 
-  const filteredComplaints = (complaints || []).filter(c => 
-    c.aiSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.location.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredComplaints = (complaints || []).filter(c => {
+    const search = searchQuery.toLowerCase();
+    const summary = (c.aiSummary || '').toLowerCase();
+    const address = (c.location?.address || '').toLowerCase();
+    const desc = (c.description || '').toLowerCase();
+    return summary.includes(search) || address.includes(search) || desc.includes(search);
+  });
 
   return (
     <div className="container px-4 py-8 md:py-12 max-w-7xl">

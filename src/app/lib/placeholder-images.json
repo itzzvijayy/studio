@@ -1,29 +1,28 @@
-
 {
   "placeholderImages": [
     {
       "id": "hero-bg",
-      "description": "The majestic Meenakshi Amman Temple at dusk in Madurai",
+      "description": "Meenakshi Amman Temple Gopuram towering over Madurai city",
       "imageUrl": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
       "imageHint": "Madurai Temple"
     },
     {
       "id": "waste-plastic",
-      "description": "Plastic bottles discarded on a busy Madurai market street",
+      "description": "Plastic and litter on a busy Madurai street corner",
       "imageUrl": "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-      "imageHint": "India trash"
+      "imageHint": "Indian street"
     },
     {
       "id": "waste-organic",
-      "description": "Discarded vegetable waste near a local Madurai market",
+      "description": "Organic waste near a traditional Madurai market stall",
       "imageUrl": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
       "imageHint": "Market waste"
     },
     {
       "id": "avatar-user",
-      "description": "A proactive citizen from the heart of Madurai",
+      "description": "A proactive local citizen dedicated to Madurai's cleanliness",
       "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
-      "imageHint": "Indian person"
+      "imageHint": "Indian face"
     }
   ]
 }
