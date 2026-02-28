@@ -1,0 +1,29 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Green city park in Madurai",
+      "imageUrl": "https://picsum.photos/seed/madurai-green/1200/800",
+      "imageHint": "green park"
+    },
+    {
+      "id": "waste-plastic",
+      "description": "Plastic waste on a street",
+      "imageUrl": "https://picsum.photos/seed/plastic-waste/600/400",
+      "imageHint": "plastic waste"
+    },
+    {
+      "id": "waste-organic",
+      "description": "Organic waste pile",
+      "imageUrl": "https://picsum.photos/seed/organic-waste/600/400",
+      "imageHint": "organic waste"
+    },
+    {
+      "id": "avatar-user",
+      "description": "User profile avatar",
+      "imageUrl": "https://picsum.photos/seed/user-avatar/200/200",
+      "imageHint": "user avatar"
+    }
+  ]
+}
