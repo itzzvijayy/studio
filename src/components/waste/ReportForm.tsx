@@ -3,13 +3,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Camera, MapPin, X, Loader2, Send, Sparkles, RefreshCcw, AlertCircle } from 'lucide-react';
+import { Camera, MapPin, X, Loader2, Send, Sparkles, RefreshCcw, AlertCircle, CameraIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { aiWasteDetectionAndClassification } from '@/ai/flows/ai-waste-detection-and-classification-flow';
 import { aiComplaintSummaryFromText } from '@/ai/flows/ai-complaint-summary-from-text';
@@ -20,6 +19,7 @@ import { collection } from 'firebase/firestore';
 
 export function ReportForm() {
   const [image, setImage] = useState<string | null>(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -30,42 +30,42 @@ export function ReportForm() {
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // Handle Camera Permissions and Stream
-  useEffect(() => {
-    const getCameraPermission = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' } // Prefer back camera
-        });
-        setHasCameraPermission(true);
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error('Error accessing camera:', error);
-        setHasCameraPermission(false);
-      }
-    };
-
-    if (!image) {
-      getCameraPermission();
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
     }
+    setIsCameraActive(false);
+  };
 
-    return () => {
-      // Cleanup stream on unmount or when image is captured
-      if (videoRef.current?.srcObject) {
-        const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-        tracks.forEach(track => track.stop());
+  const startCamera = async () => {
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'environment' } 
+      });
+      setHasCameraPermission(true);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    };
-  }, [image]);
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+      setHasCameraPermission(false);
+      setIsCameraActive(false);
+      toast({
+        title: "Camera Error",
+        description: "Please enable camera permissions in your browser settings.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -78,6 +78,7 @@ export function ReportForm() {
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUri = canvas.toDataURL('image/jpeg');
         setImage(dataUri);
+        stopCamera();
         runAiAnalysis(dataUri);
         handleGetLocation();
       }
@@ -95,10 +96,6 @@ export function ReportForm() {
         if (!address || /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(address)) {
           setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
         }
-        toast({
-          title: "Location Captured",
-          description: `Captured precise coordinates for cleanup.`,
-        });
       }, () => {
         toast({
           title: "Location Error",
@@ -114,17 +111,11 @@ export function ReportForm() {
     try {
       const result = await aiWasteDetectionAndClassification({ photoDataUri: dataUri });
       setAiResult(result);
-      
       if (result.wasteDetected && result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
     } catch (error) {
       console.error('AI Analysis Error:', error);
-      toast({
-        title: "Analysis Error",
-        description: "Vision-AI encountered an error. You can still report manually.",
-        variant: "destructive",
-      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -132,21 +123,9 @@ export function ReportForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!image) {
-      toast({ title: "Photo Needed", description: "Please take a photo of the waste.", variant: "destructive" });
-      return;
-    }
-    if (!address) {
-      toast({ title: "Location Needed", description: "Please provide a location or address.", variant: "destructive" });
-      return;
-    }
-    if (!description || description.length < 5) {
-      toast({ title: "Details Needed", description: "Please provide a brief description of the issue.", variant: "destructive" });
-      return;
-    }
+    if (!image) return;
     if (!user) {
-      toast({ title: "Not Signed In", description: "Wait a moment while we sign you in...", variant: "destructive" });
+      toast({ title: "Session Initializing", description: "Wait a moment while we secure your session...", variant: "destructive" });
       return;
     }
 
@@ -176,14 +155,14 @@ export function ReportForm() {
       
       toast({
         title: "Report Submitted",
-        description: "Your report is live! Thank you for keeping Madurai clean.",
+        description: "Thank you! Your report has been added to the public feed.",
       });
       router.push('/complaints');
     } catch (error) {
       console.error('Submission Error:', error);
       toast({
         title: "Submission Error",
-        description: "We couldn't process your report right now. Please try again.",
+        description: "We couldn't process your report. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -192,140 +171,107 @@ export function ReportForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto pb-10">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto pb-20">
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold tracking-tight">Report Cleanup Needed</h2>
-        <p className="text-muted-foreground text-sm">Snap a photo of the environmental concern. Our AI will identify waste and coordinate cleanup priority.</p>
+        <h2 className="text-3xl font-bold tracking-tight">Citizen Report</h2>
+        <p className="text-muted-foreground text-sm">Tap the camera icon to capture waste or environmental concerns in your area.</p>
       </div>
 
-      <div className="relative group rounded-3xl overflow-hidden aspect-video border-4 border-white shadow-2xl bg-black">
+      <div className="relative group rounded-3xl overflow-hidden aspect-video border-4 border-white shadow-2xl bg-muted flex items-center justify-center">
         {image ? (
           <div className="relative h-full w-full">
-            <Image 
-              src={image} 
-              alt="Waste captured" 
-              fill 
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Image src={image} alt="Captured report" fill className="object-cover" />
+            <Button 
+              type="button" 
+              variant="destructive" 
+              size="icon" 
+              className="absolute top-4 right-4 rounded-full shadow-lg"
+              onClick={() => { setImage(null); setAiResult(null); }}
+            >
+              <RefreshCcw className="w-5 h-5" />
+            </Button>
+          </div>
+        ) : isCameraActive ? (
+          <div className="relative h-full w-full bg-black">
+            <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
+            <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-4 px-4">
+               <Button 
+                type="button" 
+                variant="outline" 
+                className="rounded-full bg-white/20 text-white border-white/40 backdrop-blur-md"
+                onClick={stopCamera}
+              >
+                Cancel
+              </Button>
               <Button 
                 type="button" 
-                variant="destructive" 
                 size="icon" 
-                className="rounded-full h-12 w-12"
-                onClick={() => { setImage(null); setAiResult(null); }}
+                className="h-16 w-16 rounded-full bg-primary text-white border-4 border-white/20 hover:scale-110 transition-transform"
+                onClick={capturePhoto}
               >
-                <RefreshCcw className="w-6 h-6" />
+                <Camera className="w-8 h-8" />
               </Button>
             </div>
           </div>
         ) : (
-          <div className="relative h-full w-full">
-            <video 
-              ref={videoRef} 
-              className="w-full h-full object-cover" 
-              autoPlay 
-              muted 
-              playsInline
-            />
-            {hasCameraPermission === false && (
-              <div className="absolute inset-0 flex items-center justify-center p-6 text-center bg-muted/80 backdrop-blur-sm">
-                <div className="space-y-4">
-                  <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
-                  <p className="font-bold">Camera Access Required</p>
-                  <p className="text-sm text-muted-foreground">Please enable camera permissions to report waste directly from your location.</p>
-                </div>
-              </div>
-            )}
-            {hasCameraPermission === true && (
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-                <Button 
-                  type="button" 
-                  size="icon" 
-                  className="h-16 w-16 rounded-full bg-white text-primary border-4 border-primary/20 hover:scale-110 transition-transform"
-                  onClick={capturePhoto}
-                >
-                  <Camera className="w-8 h-8" />
-                </Button>
-              </div>
-            )}
+          <div className="text-center p-12 w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 cursor-pointer hover:from-gray-100 hover:to-gray-200 transition-colors" onClick={startCamera}>
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <CameraIcon className="w-10 h-10 text-primary" />
+            </div>
+            <p className="font-bold text-lg text-primary">Open Camera</p>
+            <p className="text-xs text-muted-foreground mt-1">Tap to snap a live photo</p>
           </div>
         )}
       </div>
 
-      {/* Hidden canvas for capturing frames */}
       <canvas ref={canvasRef} className="hidden" />
 
       {isAnalyzing && (
         <Card className="border-accent/20 bg-accent/5 animate-pulse rounded-2xl">
           <CardContent className="p-6 flex items-center gap-4">
             <Loader2 className="w-6 h-6 animate-spin text-accent" />
-            <div className="space-y-1">
-              <p className="font-semibold text-accent">Vision-AI is Analyzing...</p>
-              <p className="text-xs text-muted-foreground">Identifying waste types and assessing severity</p>
-            </div>
+            <p className="font-semibold text-accent">Vision-AI analyzing the site...</p>
           </CardContent>
         </Card>
       )}
 
       {aiResult && aiResult.wasteDetected && (
-        <Card className="border-green-200 bg-green-50 shadow-lg overflow-hidden transition-all duration-500 animate-in slide-in-from-top-4 rounded-2xl">
+        <Card className="border-none bg-green-50 shadow-sm rounded-2xl overflow-hidden border border-green-100">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-5 h-5 text-green-600" />
-              <span className="font-bold text-green-700 uppercase tracking-wider text-xs">Vision-AI Classification</span>
+              <Sparkles className="w-4 h-4 text-green-600" />
+              <span className="font-bold text-green-700 uppercase tracking-wider text-[10px]">AI Assessment</span>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-              <Badge variant="secondary" className="bg-white text-green-800 border-green-200 py-1 px-3 capitalize">
-                {aiResult.wasteType}
-              </Badge>
-              <Badge 
-                className={cn(
-                  "py-1 px-3 capitalize border-none",
-                  aiResult.severity === 'critical' || aiResult.severity === 'high' 
-                    ? "bg-red-500 text-white" 
-                    : "bg-blue-500 text-white"
-                )}
-              >
-                Severity: {aiResult.severity}
+              <Badge variant="outline" className="bg-white capitalize">{aiResult.wasteType}</Badge>
+              <Badge className={cn("capitalize border-none", aiResult.severity === 'critical' ? 'bg-red-500' : 'bg-blue-500')}>
+                {aiResult.severity} Urgency
               </Badge>
             </div>
-            <p className="text-sm text-green-900 leading-relaxed italic">
-              {aiResult.analysisDetails}
-            </p>
+            <p className="text-sm text-green-900 leading-relaxed italic">{aiResult.analysisDetails}</p>
           </CardContent>
         </Card>
       )}
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Site Address or Landmarks</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="e.g. Near Meenakshi Temple, Madurai" 
-                className="h-12 rounded-xl pl-10"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-              />
-            </div>
-            <Button 
-              type="button" 
-              variant="outline" 
-              className="h-12 w-12 rounded-xl p-0 shrink-0 border-muted-foreground/20"
-              onClick={handleGetLocation}
-            >
-              <MapPin className="w-5 h-5" />
-            </Button>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Location Details</label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Landmark or street name..." 
+              className="h-12 rounded-xl pl-10"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Citizen Description</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Additional Notes</label>
           <Textarea 
-            placeholder="Help the cleanup team by describing the situation..." 
-            className="min-h-[120px] rounded-2xl p-4 resize-none"
+            placeholder="Describe any specifics for the cleanup crew..." 
+            className="min-h-[100px] rounded-2xl p-4 resize-none"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -334,19 +280,9 @@ export function ReportForm() {
         <Button 
           type="submit" 
           disabled={isSubmitting || isAnalyzing || !image}
-          className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg hover:shadow-xl transition-all"
+          className="w-full h-14 rounded-2xl text-lg font-bold shadow-lg"
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Submitting Report...
-            </>
-          ) : (
-            <>
-              <Send className="w-5 h-5 mr-2" />
-              Submit Report
-            </>
-          )}
+          {isSubmitting ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Submitting...</> : <><Send className="w-5 h-5 mr-2" /> Send Report</>}
         </Button>
       </div>
     </form>
