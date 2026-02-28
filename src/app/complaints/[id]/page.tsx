@@ -5,7 +5,8 @@ import { use, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, ChevronRight } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -20,6 +21,8 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  
+  const [workerReply, setWorkerReply] = useState('');
   
   const complaintRef = useMemoFirebase(() => {
     if (!firestore || !id) return null;
@@ -38,14 +41,22 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const handleUpdateStatus = (newStatus: ComplaintStatus) => {
     if (!complaintRef) return;
     
-    updateDocumentNonBlocking(complaintRef, { 
+    const updateData: any = { 
       status: newStatus,
-      resolvedDateTime: newStatus === 'resolved' ? new Date().toISOString() : null
-    });
+    };
+
+    if (newStatus === 'resolved') {
+      updateData.resolvedDateTime = new Date().toISOString();
+      updateData.resolutionDetails = workerReply;
+    } else {
+      updateData.resolvedDateTime = null;
+    }
+    
+    updateDocumentNonBlocking(complaintRef, updateData);
 
     toast({
       title: "Status Updated",
-      description: `Report marked as ${newStatus}. Thank you for your service!`,
+      description: `Report marked as ${newStatus}. ${newStatus === 'resolved' ? 'Citizen has been notified of your reply.' : 'Review is underway.'}`,
     });
   };
 
@@ -145,30 +156,65 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Worker Controls */}
           {isWorker && (
-            <Card className="border-2 border-accent/20 bg-accent/5 rounded-3xl overflow-hidden">
+            <Card className="border-2 border-accent/20 bg-accent/5 rounded-3xl overflow-hidden shadow-lg ring-1 ring-accent/10">
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Briefcase className="w-5 h-5 text-accent" />
-                  <h3 className="font-bold text-accent">Worker Control Panel</h3>
+                  <h3 className="font-bold text-accent">Guardian Response Panel</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    variant={complaint.status === 'in-progress' ? "default" : "outline"} 
-                    className="rounded-xl h-12 font-bold"
-                    onClick={() => handleUpdateStatus('in-progress')}
-                    disabled={complaint.status === 'in-progress'}
-                  >
-                    Mark In-Progress
-                  </Button>
-                  <Button 
-                    variant={complaint.status === 'resolved' ? "default" : "outline"} 
-                    className="rounded-xl h-12 font-bold bg-green-600 hover:bg-green-700 text-white border-none"
-                    onClick={() => handleUpdateStatus('resolved')}
-                    disabled={complaint.status === 'resolved'}
-                  >
-                    Mark Resolved
-                  </Button>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase text-accent/70 ml-1 flex items-center gap-1">
+                      <MessageSquare className="w-3 h-3" /> Worker's Resolution Reply
+                    </label>
+                    <Textarea 
+                      placeholder="Describe the action taken or provide details for the citizen..."
+                      value={workerReply}
+                      onChange={(e) => setWorkerReply(e.target.value)}
+                      className="rounded-xl border-accent/20 focus:ring-accent bg-white/50"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      variant={complaint.status === 'in-progress' ? "default" : "outline"} 
+                      className="rounded-xl h-12 font-bold transition-all"
+                      onClick={() => handleUpdateStatus('in-progress')}
+                      disabled={complaint.status === 'in-progress'}
+                    >
+                      Under Review
+                    </Button>
+                    <Button 
+                      variant={complaint.status === 'resolved' ? "default" : "outline"} 
+                      className="rounded-xl h-12 font-bold bg-green-600 hover:bg-green-700 text-white border-none shadow-md active:scale-95 transition-all"
+                      onClick={() => handleUpdateStatus('resolved')}
+                      disabled={complaint.status === 'resolved'}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Resolved
+                    </Button>
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Official Resolution Card (Visible to everyone if resolved) */}
+          {complaint.status === 'resolved' && (
+            <Card className="rounded-3xl border-2 border-green-100 bg-green-50/30 overflow-hidden shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <ShieldCheck className="w-5 h-5 text-green-600" />
+                  <h3 className="font-bold text-green-800">Official Resolution</h3>
+                </div>
+                <div className="bg-white/80 p-4 rounded-2xl border border-green-100 shadow-inner italic text-green-900">
+                  {complaint.resolutionDetails || "This spot has been successfully cleaned by our Madurai Cleanup Guardians."}
+                </div>
+                {complaint.resolvedDateTime && (
+                  <p className="text-[10px] uppercase font-bold text-green-600/60 mt-3 text-right">
+                    Completed on {format(new Date(complaint.resolvedDateTime), 'MMM d, yyyy • h:mm a')}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
