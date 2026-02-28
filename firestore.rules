@@ -1,10 +1,11 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     /**
-     * VISION-AI CLEAN MADURAI - SECURITY RULES
-     * Updated to allow broad access for authenticated users to resolve listing issues.
-     * Deployment Trigger: 2024-05-22T14:45:00Z
+     * MADURAI CIVIC ACTION - CONSOLIDATED SECURITY RULES
+     * Allows authenticated citizens full read/write access to facilitate city-wide cleanup.
+     * Version: 2024-05-22T16:00:00Z
      */
     match /{document=**} {
       allow read, write: if request.auth != null;
