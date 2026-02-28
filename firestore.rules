@@ -4,24 +4,28 @@ service cloud.firestore {
 
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
-     * Simplified rules to ensure public visibility of city reports.
-     * Triggering deployment: 2024-05-20-v3
+     * Ensuring public visibility for city cleanup reports while protecting user data.
+     * Triggering deployment: 2024-05-20-v5
      */
 
     // --- COLLECTION RULES ---
 
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow users to manage their own profile data
+      allow get, write: if request.auth != null && request.auth.uid == userId;
+      // Prevent listing all users for privacy
+      allow list: if false;
     }
 
     match /complaints/{complaintId} {
-      // Allow any signed-in citizen to see the city's cleanup progress
+      // Allow any signed-in citizen to see the city's cleanup progress (get and list)
       allow read: if request.auth != null;
 
       // Allow report creation if the user is authenticated
       allow create: if request.auth != null;
 
       // Only allow the original reporter to update or delete their entry
+      // This uses the 'userId' field stored within the document
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 

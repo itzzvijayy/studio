@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { ComplaintCard } from '@/components/waste/ComplaintCard';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search, Filter, ClipboardList, Loader2 } from 'lucide-react';
+import { Search, Filter, ClipboardList, Loader2, AlertCircle } from 'lucide-react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { WasteComplaint } from '@/lib/types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function ComplaintsListPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,13 +17,14 @@ export default function ComplaintsListPage() {
 
   const complaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
+    // We fetch all complaints to show the public feed
     return query(
       collection(firestore, 'complaints'),
       orderBy('createdAt', 'desc')
     );
   }, [firestore, user]);
 
-  const { data: complaints, isLoading } = useCollection<WasteComplaint>(complaintsQuery);
+  const { data: complaints, isLoading, error } = useCollection<WasteComplaint>(complaintsQuery);
 
   const filteredComplaints = (complaints || []).filter(c => {
     const search = searchQuery.toLowerCase();
@@ -38,21 +40,31 @@ export default function ComplaintsListPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-primary mb-1">
             <ClipboardList className="w-8 h-8" />
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Public Reports</h1>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Madurai Public Reports</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Transparent tracking of reported environmental issues across Madurai.</p>
+          <p className="text-muted-foreground text-lg">Real-time environmental monitoring across the heritage city.</p>
         </div>
 
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input 
-            placeholder="Search location or issue..." 
+            placeholder="Search streets or landmarks..." 
             className="pl-10 h-12 rounded-full border-muted-foreground/20 focus:ring-primary shadow-sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
       </div>
+
+      {error && (
+        <Alert variant="destructive" className="mb-8 rounded-2xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Access Issue</AlertTitle>
+          <AlertDescription>
+            We're having trouble loading the reports. This might be a temporary permission delay. Please refresh in a moment.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="all" className="space-y-8">
         <div className="flex items-center justify-between border-b pb-1 overflow-x-auto no-scrollbar">
@@ -65,7 +77,7 @@ export default function ComplaintsListPage() {
           
           <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
             <Filter className="w-4 h-4" />
-            <span>Sort by: Latest</span>
+            <span>Sort by: Latest Reports</span>
           </div>
         </div>
 
@@ -85,7 +97,7 @@ export default function ComplaintsListPage() {
               ) : (
                 <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-muted-foreground/20">
                   <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
-                  <p className="text-xl font-medium text-muted-foreground">No reports found.</p>
+                  <p className="text-xl font-medium text-muted-foreground">No reports found for this view.</p>
                 </div>
               )}
             </TabsContent>
