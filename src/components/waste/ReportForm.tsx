@@ -36,7 +36,10 @@ export function ReportForm() {
           lng: position.coords.longitude
         };
         setLocation(coords);
-        setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
+        // If address is empty or looks like coordinates, update it
+        if (!address || address.includes(',')) {
+          setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
+        }
         toast({
           title: "Location Captured",
           description: `Coordinates: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
@@ -44,7 +47,7 @@ export function ReportForm() {
       }, () => {
         toast({
           title: "Location Error",
-          description: "Could not retrieve your current location.",
+          description: "Could not retrieve your current location. Please enter address manually.",
           variant: "destructive",
         });
       });
@@ -59,7 +62,6 @@ export function ReportForm() {
         const dataUri = reader.result as string;
         setImage(dataUri);
         runAiAnalysis(dataUri);
-        // Automatically fetch location when photo is added
         handleGetLocation();
       };
       reader.readAsDataURL(file);
@@ -71,17 +73,23 @@ export function ReportForm() {
     try {
       const result = await aiWasteDetectionAndClassification({ photoDataUri: dataUri });
       setAiResult(result);
+      
+      // Auto-fill description if user hasn't typed anything
+      if (result.wasteDetected && result.analysisDetails && !description) {
+        setDescription(result.analysisDetails);
+      }
+
       if (!result.wasteDetected) {
         toast({
           title: "No Waste Detected",
-          description: "Our AI didn't find clear waste in this image. Please ensure the waste is clearly visible.",
+          description: "Our AI didn't find clear waste in this image. You can still describe it manually.",
         });
       }
     } catch (error) {
-      console.error(error);
+      console.error('AI Analysis Error:', error);
       toast({
         title: "Analysis Failed",
-        description: "There was an error analyzing the image. Please try again.",
+        description: "Vision-AI encountered an error. You can still report manually.",
         variant: "destructive",
       });
     } finally {
@@ -91,33 +99,40 @@ export function ReportForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image || !description) {
-      toast({
-        title: "Missing Information",
-        description: "Please provide both an image and a description.",
-        variant: "destructive",
-      });
+    
+    // Validation
+    if (!image) {
+      toast({ title: "Image Required", description: "Please take or upload a photo of the waste.", variant: "destructive" });
+      return;
+    }
+    if (!address) {
+      toast({ title: "Location Required", description: "Please provide a location or address.", variant: "destructive" });
+      return;
+    }
+    if (!description || description.length < 5) {
+      toast({ title: "Description Required", description: "Please provide a brief description of the issue.", variant: "destructive" });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Summarize with AI before saving
-      const summaryResult = await aiComplaintSummaryFromText({ complaintText: description });
+      // Use text summary AI if we have a description
+      // This step helps categorize the report for the dashboard
+      await aiComplaintSummaryFromText({ complaintText: description });
       
-      // In a real app, we'd send to a database here
-      // For this demo, we'll simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Simulate database save
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       toast({
-        title: "Complaint Submitted",
-        description: "Thank you for helping keep Madurai clean! Your report is being processed.",
+        title: "Report Received",
+        description: "Thank you for helping keep Madurai clean! We've received your report.",
       });
       router.push('/complaints');
     } catch (error) {
+      console.error('Submission Error:', error);
       toast({
-        title: "Submission Error",
-        description: "Failed to submit complaint. Please try again later.",
+        title: "Submission Failed",
+        description: "We couldn't process your report right now. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
@@ -126,10 +141,10 @@ export function ReportForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mx-auto pb-10">
       <div className="space-y-4">
         <h2 className="text-2xl font-bold tracking-tight">Report Waste</h2>
-        <p className="text-muted-foreground">Upload a photo and describe the issue. Our Vision-AI will handle the classification.</p>
+        <p className="text-muted-foreground text-sm">Upload a photo and our Vision-AI will identify the waste type and severity for priority cleanup.</p>
       </div>
 
       {/* Image Upload Area */}
@@ -162,8 +177,8 @@ export function ReportForm() {
             <div className="p-4 bg-primary text-white rounded-full mb-4 shadow-lg group-hover:scale-110 transition-transform">
               <Camera className="w-8 h-8" />
             </div>
-            <p className="font-semibold text-lg">Tap to take photo</p>
-            <p className="text-sm text-muted-foreground mt-1">or click to upload from gallery</p>
+            <p className="font-semibold text-lg">Capture Photo</p>
+            <p className="text-sm text-muted-foreground mt-1">Tap to open camera or gallery</p>
           </div>
         )}
         <input 
@@ -177,41 +192,41 @@ export function ReportForm() {
 
       {/* AI Analysis Result Card */}
       {isAnalyzing && (
-        <Card className="border-accent/20 bg-accent/5 animate-pulse">
+        <Card className="border-accent/20 bg-accent/5 animate-pulse rounded-2xl">
           <CardContent className="p-6 flex items-center gap-4">
             <Loader2 className="w-6 h-6 animate-spin text-accent" />
             <div className="space-y-1">
               <p className="font-semibold text-accent">AI Analysis in progress...</p>
-              <p className="text-xs text-muted-foreground">Classifying waste type and assessing severity</p>
+              <p className="text-xs text-muted-foreground">Identifying waste and assessing environmental impact</p>
             </div>
           </CardContent>
         </Card>
       )}
 
       {aiResult && aiResult.wasteDetected && (
-        <Card className="border-green-200 bg-green-50 shadow-lg overflow-hidden transition-all duration-500 animate-in slide-in-from-top-4">
+        <Card className="border-green-200 bg-green-50 shadow-lg overflow-hidden transition-all duration-500 animate-in slide-in-from-top-4 rounded-2xl">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-5 h-5 text-green-600" />
-              <span className="font-bold text-green-700 uppercase tracking-wider text-xs">AI Vision Insights</span>
+              <span className="font-bold text-green-700 uppercase tracking-wider text-xs">Vision-AI Classification</span>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-              <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200 py-1 px-3">
+              <Badge variant="secondary" className="bg-white text-green-800 border-green-200 py-1 px-3 capitalize">
                 {aiResult.wasteType}
               </Badge>
               <Badge 
                 className={cn(
-                  "py-1 px-3",
+                  "py-1 px-3 capitalize border-none",
                   aiResult.severity === 'critical' || aiResult.severity === 'high' 
-                    ? "bg-red-100 text-red-800 hover:bg-red-100" 
-                    : "bg-blue-100 text-blue-800 hover:bg-blue-100"
+                    ? "bg-red-500 text-white" 
+                    : "bg-blue-500 text-white"
                 )}
               >
                 Severity: {aiResult.severity}
               </Badge>
             </div>
             <p className="text-sm text-green-900 leading-relaxed italic">
-              &quot;{aiResult.analysisDetails}&quot;
+              {aiResult.analysisDetails}
             </p>
           </CardContent>
         </Card>
@@ -219,18 +234,21 @@ export function ReportForm() {
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Location</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Cleanup Site Location</label>
           <div className="flex gap-2">
-            <Input 
-              placeholder="e.g. Near Meenakshi Temple, West Tower" 
-              className="h-12 rounded-xl"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-            />
+            <div className="relative flex-1">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                placeholder="e.g. Near Meenakshi Temple, West Tower" 
+                className="h-12 rounded-xl pl-10"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
             <Button 
               type="button" 
               variant="outline" 
-              className="h-12 w-12 rounded-xl p-0 shrink-0"
+              className="h-12 w-12 rounded-xl p-0 shrink-0 border-muted-foreground/20"
               onClick={handleGetLocation}
             >
               <MapPin className="w-5 h-5" />
@@ -239,9 +257,9 @@ export function ReportForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Description</label>
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Citizen Description</label>
           <Textarea 
-            placeholder="Tell us more about the waste problem... (location hints, type, size)" 
+            placeholder="Help us understand the situation better..." 
             className="min-h-[120px] rounded-2xl p-4 resize-none"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -256,12 +274,12 @@ export function ReportForm() {
           {isSubmitting ? (
             <>
               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Submitting...
+              Sending Report...
             </>
           ) : (
             <>
               <Send className="w-5 h-5 mr-2" />
-              Report Concern
+              Submit Report
             </>
           )}
         </Button>
