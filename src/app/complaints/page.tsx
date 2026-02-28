@@ -19,7 +19,6 @@ export default function ComplaintsListPage() {
   // We only start the query if the user is authenticated (including anonymous)
   // to satisfy the security rules 'request.auth != null'
   const complaintsQuery = useMemoFirebase(() => {
-    // Ensure both firestore and user are initialized before querying
     if (!firestore || !user) return null;
     
     return query(
@@ -60,99 +59,100 @@ export default function ComplaintsListPage() {
         </div>
       </div>
 
-      {error && !isUserLoading && (
+      {error && (
         <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/50 bg-destructive/5">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Establishing Secure Session</AlertTitle>
+          <AlertTitle>Secure Access Initialization</AlertTitle>
           <AlertDescription className="flex flex-col gap-3">
-            <p>The system is initializing your secure citizen credentials. This usually takes just a moment.</p>
+            <p>We're finalizing your secure citizen session. If the reports don't load in a few seconds, please try refreshing.</p>
             <Button 
               variant="outline" 
               size="sm" 
               className="w-fit gap-2 rounded-full border-destructive/20 hover:bg-destructive/10"
               onClick={() => window.location.reload()}
             >
-              <RefreshCw className="w-3 h-3" /> Retry Connection
+              <RefreshCw className="w-3 h-3" /> Refresh Feed
             </Button>
           </AlertDescription>
         </Alert>
       )}
 
-      {!user && !isUserLoading && !error && (
-        <Alert className="mb-8 rounded-2xl border-primary/20 bg-primary/5">
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <AlertTitle>Initializing Citizen Access</AlertTitle>
-          <AlertDescription>
-            Preparing your secure workspace for Madurai city monitoring...
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <Tabs defaultValue="all" className="space-y-8">
-        <div className="flex items-center justify-between border-b pb-1 overflow-x-auto no-scrollbar">
-          <TabsList className="bg-transparent border-none p-0 h-auto gap-8">
-            <TabsTrigger value="all" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">All Reports</TabsTrigger>
-            <TabsTrigger value="pending" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Pending</TabsTrigger>
-            <TabsTrigger value="in-progress" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Action Taken</TabsTrigger>
-            <TabsTrigger value="resolved" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Resolved</TabsTrigger>
-          </TabsList>
-          
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-            <Filter className="w-4 h-4" />
-            <span>Sort by: Latest Reports</span>
+      {isUserLoading && !error && (
+        <div className="flex justify-center py-20">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground">Authenticating citizen session...</p>
           </div>
         </div>
+      )}
 
-        {(isLoading || isUserLoading) ? (
-          <div className="flex justify-center py-20">
-            <div className="flex flex-col items-center gap-4">
-              <Loader2 className="w-10 h-10 animate-spin text-primary" />
-              <p className="text-sm font-medium text-muted-foreground">Loading public feed...</p>
+      {!isUserLoading && (
+        <Tabs defaultValue="all" className="space-y-8">
+          <div className="flex items-center justify-between border-b pb-1 overflow-x-auto no-scrollbar">
+            <TabsList className="bg-transparent border-none p-0 h-auto gap-8">
+              <TabsTrigger value="all" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">All Reports</TabsTrigger>
+              <TabsTrigger value="pending" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Pending</TabsTrigger>
+              <TabsTrigger value="in-progress" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Action Taken</TabsTrigger>
+              <TabsTrigger value="resolved" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0 pb-3 font-bold text-base transition-all">Resolved</TabsTrigger>
+            </TabsList>
+            
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="w-4 h-4" />
+              <span>Sort by: Latest Reports</span>
             </div>
           </div>
-        ) : (
-          <>
-            <TabsContent value="all" className="m-0">
-              {filteredComplaints.length > 0 ? (
+
+          {isLoading ? (
+            <div className="flex justify-center py-20">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+                <p className="text-sm font-medium text-muted-foreground">Loading public feed...</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <TabsContent value="all" className="m-0">
+                {filteredComplaints.length > 0 ? (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {filteredComplaints.map((complaint) => (
+                      <ComplaintCard key={complaint.id} complaint={complaint} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-muted-foreground/20">
+                    <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
+                    <p className="text-xl font-medium text-muted-foreground">No reports found yet. Be the first to report!</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="pending" className="m-0">
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {filteredComplaints.map((complaint) => (
+                  {filteredComplaints.filter(c => c.status === 'pending').map((complaint) => (
                     <ComplaintCard key={complaint.id} complaint={complaint} />
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-muted-foreground/20">
-                  <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-20" />
-                  <p className="text-xl font-medium text-muted-foreground">No reports found for this view.</p>
+              </TabsContent>
+
+              <TabsContent value="in-progress" className="m-0">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredComplaints.filter(c => c.status === 'in-progress').map((complaint) => (
+                    <ComplaintCard key={complaint.id} complaint={complaint} />
+                  ))}
                 </div>
-              )}
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="pending" className="m-0">
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredComplaints.filter(c => c.status === 'pending').map((complaint) => (
-                  <ComplaintCard key={complaint.id} complaint={complaint} />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="in-progress" className="m-0">
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredComplaints.filter(c => c.status === 'in-progress').map((complaint) => (
-                  <ComplaintCard key={complaint.id} complaint={complaint} />
-                ))}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="resolved" className="m-0">
-               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredComplaints.filter(c => c.status === 'resolved').map((complaint) => (
-                  <ComplaintCard key={complaint.id} complaint={complaint} />
-                ))}
-              </div>
-            </TabsContent>
-          </>
-        )}
-      </Tabs>
+              <TabsContent value="resolved" className="m-0">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {filteredComplaints.filter(c => c.status === 'resolved').map((complaint) => (
+                    <ComplaintCard key={complaint.id} complaint={complaint} />
+                  ))}
+                </div>
+              </TabsContent>
+            </>
+          )}
+        </Tabs>
+      )}
     </div>
   );
 }

@@ -4,7 +4,6 @@ service cloud.firestore {
 
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
-     * Version: 2024-05-20T19:15:00Z
      * Purpose: Ensure public visibility for city cleanup reports while protecting user identities.
      */
 
@@ -38,4 +37,4 @@ service cloud.firestore {
     }
   }
 }
-// Deployment Trigger: Force refresh for permission updates.
+// Deployment Trigger: 2024-05-21T10:45:00Z - Permission Correction
