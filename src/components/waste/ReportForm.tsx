@@ -53,8 +53,6 @@ export function ReportForm() {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
         } 
       });
       setHasCameraPermission(true);
@@ -63,7 +61,10 @@ export function ReportForm() {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
           setIsCameraLoading(false);
-          videoRef.current?.play().catch(console.error);
+          videoRef.current?.play().catch(err => {
+            console.error("Video play failed:", err);
+            setIsCameraLoading(false);
+          });
         };
       }
     } catch (error) {
@@ -80,34 +81,55 @@ export function ReportForm() {
   };
 
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
 
-      // Ensure video is ready
-      if (video.readyState < 2 || video.videoWidth === 0) {
-        toast({
-          title: "Camera Warming Up",
-          description: "Please wait a second for the lens to focus.",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!video || !canvas) {
+      console.error("Missing video or canvas ref");
+      return;
+    }
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      if (context) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Attempt to capture even if readyState is low, but warn if no dimensions
+    const width = video.videoWidth || video.clientWidth;
+    const height = video.videoHeight || video.clientHeight;
+
+    if (width === 0 || height === 0) {
+      toast({
+        title: "Camera not ready",
+        description: "The video stream is still initializing. Please wait a second.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+    
+    if (context) {
+      try {
+        context.drawImage(video, 0, 0, width, height);
         const dataUri = canvas.toDataURL('image/jpeg', 0.85);
-        setImage(dataUri);
-        stopCamera();
-        runAiAnalysis(dataUri);
-        handleGetLocation();
         
+        if (dataUri && dataUri.length > 100) {
+          setImage(dataUri);
+          stopCamera();
+          runAiAnalysis(dataUri);
+          handleGetLocation();
+          
+          toast({
+            title: "Photo Captured",
+            description: "Vision-AI is now analyzing the site.",
+          });
+        } else {
+          throw new Error("Failed to generate valid image data.");
+        }
+      } catch (err) {
+        console.error("Capture failed:", err);
         toast({
-          title: "Photo Captured",
-          description: "Vision-AI is now analyzing the site.",
+          title: "Capture Failed",
+          description: "Something went wrong while taking the photo. Please try again.",
+          variant: "destructive",
         });
       }
     }
