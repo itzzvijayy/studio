@@ -3,27 +3,27 @@
   "placeholderImages": [
     {
       "id": "hero-bg",
-      "description": "Green city park in Madurai",
-      "imageUrl": "https://picsum.photos/seed/madurai-green/1200/800",
-      "imageHint": "green park"
+      "description": "The majestic Meenakshi Amman Temple at dusk in Madurai",
+      "imageUrl": "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+      "imageHint": "Madurai Temple"
     },
     {
       "id": "waste-plastic",
-      "description": "Plastic waste on a street",
-      "imageUrl": "https://picsum.photos/seed/plastic-waste/600/400",
-      "imageHint": "plastic waste"
+      "description": "Plastic bottles discarded on a busy Madurai market street",
+      "imageUrl": "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+      "imageHint": "India trash"
     },
     {
       "id": "waste-organic",
-      "description": "Organic waste pile",
-      "imageUrl": "https://picsum.photos/seed/organic-waste/600/400",
-      "imageHint": "organic waste"
+      "description": "Discarded vegetable waste near a local Madurai market",
+      "imageUrl": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+      "imageHint": "Market waste"
     },
     {
       "id": "avatar-user",
-      "description": "User profile avatar",
-      "imageUrl": "https://picsum.photos/seed/user-avatar/200/200",
-      "imageHint": "user avatar"
+      "description": "A proactive citizen from the heart of Madurai",
+      "imageUrl": "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=1080",
+      "imageHint": "Indian person"
     }
   ]
 }
