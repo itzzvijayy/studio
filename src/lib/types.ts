@@ -33,5 +33,7 @@ export interface WasteComplaint {
     analysisDetails: string;
   };
   status: ComplaintStatus;
+  resolutionDetails?: string;
+  resolvedDateTime?: string;
   createdAt: string;
 }

@@ -1,12 +1,12 @@
 
 "use client";
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck } from 'lucide-react';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck, Clock } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -38,16 +38,23 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
   const { data: profileDoc } = useDoc<UserProfile>(profileRef);
 
+  // Prefill reply if it exists
+  useEffect(() => {
+    if (complaint?.resolutionDetails) {
+      setWorkerReply(complaint.resolutionDetails);
+    }
+  }, [complaint]);
+
   const handleUpdateStatus = (newStatus: ComplaintStatus) => {
     if (!complaintRef) return;
     
     const updateData: any = { 
       status: newStatus,
+      resolutionDetails: workerReply,
     };
 
     if (newStatus === 'resolved') {
       updateData.resolvedDateTime = new Date().toISOString();
-      updateData.resolutionDetails = workerReply;
     } else {
       updateData.resolvedDateTime = null;
     }
@@ -56,7 +63,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
     toast({
       title: "Status Updated",
-      description: `Report marked as ${newStatus}. ${newStatus === 'resolved' ? 'Citizen has been notified of your reply.' : 'Review is underway.'}`,
+      description: `Report moved to ${newStatus === 'in-progress' ? 'Action Taken' : 'Resolved'}. The citizen and community can now see your update.`,
     });
   };
 
@@ -82,8 +89,8 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
   const isWorker = profileDoc?.role === 'worker';
   const statusInfo = {
     pending: { icon: AlertCircle, color: 'text-yellow-600', bg: 'bg-yellow-50', label: 'Reported' },
-    'in-progress': { icon: Info, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Under Review' },
-    resolved: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', label: 'Cleaned Up' },
+    'in-progress': { icon: Clock, color: 'text-blue-600', bg: 'bg-blue-50', label: 'Action Taken' },
+    resolved: { icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50', label: 'Resolved' },
   };
 
   const currentStatus = statusInfo[complaint.status as keyof typeof statusInfo] || statusInfo.pending;
@@ -166,13 +173,13 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase text-accent/70 ml-1 flex items-center gap-1">
-                      <MessageSquare className="w-3 h-3" /> Worker's Resolution Reply
+                      <MessageSquare className="w-3 h-3" /> Official Reply & Action Details
                     </label>
                     <Textarea 
-                      placeholder="Describe the action taken or provide details for the citizen..."
+                      placeholder="e.g., Cleanup team dispatched to the temple west gate..."
                       value={workerReply}
                       onChange={(e) => setWorkerReply(e.target.value)}
-                      className="rounded-xl border-accent/20 focus:ring-accent bg-white/50"
+                      className="rounded-xl border-accent/20 focus:ring-accent bg-white/50 min-h-[100px]"
                     />
                   </div>
 
@@ -183,7 +190,7 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                       onClick={() => handleUpdateStatus('in-progress')}
                       disabled={complaint.status === 'in-progress'}
                     >
-                      Under Review
+                      <Clock className="w-4 h-4 mr-2" /> Action Taken
                     </Button>
                     <Button 
                       variant={complaint.status === 'resolved' ? "default" : "outline"} 
@@ -199,18 +206,23 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
             </Card>
           )}
 
-          {/* Official Resolution Card (Visible to everyone if resolved) */}
-          {complaint.status === 'resolved' && (
-            <Card className="rounded-3xl border-2 border-green-100 bg-green-50/30 overflow-hidden shadow-sm">
+          {/* Official Resolution Card (Visible to everyone if details exist or resolved) */}
+          {(complaint.status === 'resolved' || (complaint.status === 'in-progress' && complaint.resolutionDetails)) && (
+            <Card className={cn(
+              "rounded-3xl border-2 overflow-hidden shadow-sm",
+              complaint.status === 'resolved' ? "border-green-100 bg-green-50/30" : "border-blue-100 bg-blue-50/30"
+            )}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-3">
-                  <ShieldCheck className="w-5 h-5 text-green-600" />
-                  <h3 className="font-bold text-green-800">Official Resolution</h3>
+                  <ShieldCheck className={cn("w-5 h-5", complaint.status === 'resolved' ? "text-green-600" : "text-blue-600")} />
+                  <h3 className={cn("font-bold", complaint.status === 'resolved' ? "text-green-800" : "text-blue-800")}>
+                    Official {complaint.status === 'resolved' ? 'Resolution' : 'Update'}
+                  </h3>
                 </div>
-                <div className="bg-white/80 p-4 rounded-2xl border border-green-100 shadow-inner italic text-green-900">
-                  {complaint.resolutionDetails || "This spot has been successfully cleaned by our Madurai Cleanup Guardians."}
+                <div className="bg-white/80 p-4 rounded-2xl border border-gray-100 shadow-inner italic text-gray-800">
+                  {complaint.resolutionDetails || (complaint.status === 'resolved' ? "This spot has been successfully cleaned by our Madurai Cleanup Guardians." : "Our crew is currently addressing this report.")}
                 </div>
-                {complaint.resolvedDateTime && (
+                {complaint.resolvedDateTime && complaint.status === 'resolved' && (
                   <p className="text-[10px] uppercase font-bold text-green-600/60 mt-3 text-right">
                     Completed on {format(new Date(complaint.resolvedDateTime), 'MMM d, yyyy • h:mm a')}
                   </p>
@@ -221,9 +233,9 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
 
           <div className="space-y-3">
             <h3 className="font-bold text-lg text-gray-800">Citizen Description</h3>
-            <p className="text-muted-foreground leading-relaxed bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+            <div className="text-muted-foreground leading-relaxed bg-white p-5 rounded-2xl shadow-sm border border-gray-100 italic">
               &quot;{complaint.description}&quot;
-            </p>
+            </div>
           </div>
 
           <Card className="rounded-3xl border-none shadow-xl bg-gradient-to-br from-primary to-green-800 text-white overflow-hidden relative">
