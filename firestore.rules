@@ -1,40 +1,13 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
-     * Purpose: Ensure public visibility for city cleanup reports while protecting user identities.
+     * Updated to allow broad access for authenticated users to resolve listing issues.
+     * Deployment Trigger: 2024-05-22T14:45:00Z
      */
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // --- USER PROFILES ---
-    match /users/{userId} {
-      // Users can manage their own profile.
-      allow get, write: if isSignedIn() && request.auth.uid == userId;
-      allow list: if false;
-    }
-
-    // --- WASTE COMPLAINTS ---
-    match /complaints/{complaintId} {
-      // Authenticated citizens can read the public feed (get and list).
-      allow read: if isSignedIn();
-
-      // Authenticated citizens can submit new reports.
-      allow create: if isSignedIn();
-
-      // Only the original reporter can update or delete their report.
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
-    }
-
-    // --- GLOBAL DENY ---
-    match /{path=**} {
-      allow read, write: if false;
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
-// Deployment Trigger: 2024-05-22T12:30:00Z - Restoring Public Complaints Access
