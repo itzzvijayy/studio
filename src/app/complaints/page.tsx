@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Search, Filter, ClipboardList, Loader2 } from 'lucide-react';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { WasteComplaint } from '@/lib/types';
 
 export default function ComplaintsListPage() {
@@ -17,10 +17,10 @@ export default function ComplaintsListPage() {
 
   const complaintsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
-    // We filter by userId to satisfy security rules (resource.data.userId == auth.uid)
+    // We now fetch ALL complaints to show a public community feed,
+    // while keeping the user's specific activity in their profile.
     return query(
       collection(firestore, 'complaints'),
-      where('userId', '==', user.uid),
       orderBy('createdAt', 'desc')
     );
   }, [firestore, user]);
@@ -29,7 +29,8 @@ export default function ComplaintsListPage() {
 
   const filteredComplaints = (complaints || []).filter(c => 
     c.aiSummary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.location.address.toLowerCase().includes(searchQuery.toLowerCase())
+    c.location.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    c.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -38,9 +39,9 @@ export default function ComplaintsListPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-primary mb-1">
             <ClipboardList className="w-8 h-8" />
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Your Reports</h1>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Public Reports</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Transparent tracking of your reported environmental issues in Madurai.</p>
+          <p className="text-muted-foreground text-lg">Transparent tracking of reported environmental issues across Madurai.</p>
         </div>
 
         <div className="relative w-full md:w-96">

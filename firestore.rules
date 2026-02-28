@@ -5,8 +5,9 @@ service cloud.firestore {
     /**
      * VISION-AI CLEAN MADURAI - SECURITY RULES
      *
-     * This ruleset enforces a strict User-Ownership model.
-     * Redeployment triggered to ensure synchronization.
+     * Updated to allow public reading of complaints by signed-in users,
+     * while maintaining strict ownership for creating and modifying reports.
+     * Triggering deployment: 2024-05-20-v2
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
@@ -34,12 +35,8 @@ service cloud.firestore {
      * Private profiles: only the user can read/write their own document.
      */
     match /users/{userId} {
-      // Path-based ownership check for single document access
       allow get: if isOwner(userId);
-      
-      // List is generally not needed for users collection in this app
       allow list: if isOwner(userId);
-      
       allow create: if isOwner(userId) && incomingData().id == userId;
       allow update: if isOwner(userId) && incomingData().id == existingData().id;
       allow delete: if isOwner(userId);
@@ -47,20 +44,20 @@ service cloud.firestore {
 
     /**
      * @path /complaints/{complaintId}
-     * Complaints: secured by a 'userId' field within each document.
-     * Forces the client to use .where('userId', '==', auth.uid) for list operations.
+     * Complaints: Publicly readable by all signed-in citizens,
+     * but only the original reporter can update or delete.
      */
     match /complaints/{complaintId} {
       
-      // Use resource.data to verify ownership for both individual get and collection listing.
-      // This enforces the 'Rules are not Filters' principle.
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Allow any signed-in user to see all reports. 
+      // This supports the "Public Reports" transparency goal.
+      allow read: if isSignedIn();
 
       // Ensure new complaints are correctly linked to the submitter.
       allow create: if isSignedIn() && incomingData().userId == request.auth.uid;
 
       // Only the submitter can update or delete their own reports.
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && existingData().userId == request.auth.uid;
     }
 
     // --- DEFAULT DENY ---
