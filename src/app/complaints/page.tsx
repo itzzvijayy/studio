@@ -63,17 +63,27 @@ export default function ComplaintsListPage() {
       {error && (
         <Alert variant="destructive" className="mb-8 rounded-2xl border-destructive/50 bg-destructive/5">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Syncing Secure Connection</AlertTitle>
+          <AlertTitle>Establishing Secure Session</AlertTitle>
           <AlertDescription className="flex flex-col gap-3">
-            <p>The system is initializing your secure citizen session. If you still see this after a few seconds, please refresh.</p>
+            <p>The system is initializing your secure citizen credentials. This usually takes just a moment.</p>
             <Button 
               variant="outline" 
               size="sm" 
               className="w-fit gap-2 rounded-full border-destructive/20 hover:bg-destructive/10"
               onClick={() => window.location.reload()}
             >
-              <RefreshCw className="w-3 h-3" /> Refresh Feed
+              <RefreshCw className="w-3 h-3" /> Retry Connection
             </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!user && !isUserLoading && !error && (
+        <Alert className="mb-8 rounded-2xl border-primary/20 bg-primary/5">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <AlertTitle>Initializing Citizen Access</AlertTitle>
+          <AlertDescription>
+            Preparing your secure workspace for Madurai city monitoring...
           </AlertDescription>
         </Alert>
       )}
@@ -95,7 +105,10 @@ export default function ComplaintsListPage() {
 
         {(isLoading || isUserLoading) ? (
           <div className="flex justify-center py-20">
-            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <p className="text-sm font-medium text-muted-foreground">Loading public feed...</p>
+            </div>
           </div>
         ) : (
           <>
