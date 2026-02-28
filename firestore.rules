@@ -3,67 +3,26 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * VISION-AI CLEAN MADURAI - SECURITY RULES PHILOSOPHY
+     * VISION-AI CLEAN MADURAI - SECURITY RULES
      *
-     * Core Philosophy: 
-     * This ruleset implements a strict User-Ownership model. Every piece of data 
-     * (Profiles and Complaints) is tied to a specific user via their Firebase 
-     * Authentication UID.
-     *
-     * Data Structure:
-     * 1. /users/{userId}: Individual user profiles secured by path-based ownership.
-     * 2. /complaints/{complaintId}: Flat collection of waste reports, secured by a 
-     *    denormalized 'userId' field within each document.
-     *
-     * Key Security Decisions:
-     * - Authorization Independence: Complaint documents store the owner's UID 
-     *   directly. This allows the rules to verify ownership instantly without 
-     *   performing additional 'get()' calls to the user's profile, saving cost 
-     *   and improving performance.
-     * - Query Security (Rules are not Filters): For the /complaints collection, 
-     *   the rules enforce that users can only list documents where the 'userId' 
-     *   matches their own UID. This requires clients to use a 'where' filter 
-     *   in their queries.
-     * - Prototyping Flexibility: While ownership is strictly enforced, the 
-     *   internal data structure (schema) is not validated beyond critical 
-     *   relational links (like userId) to allow for rapid UI iteration.
+     * This ruleset enforces a strict User-Ownership model.
+     * Redeployment triggered to ensure synchronization.
      */
 
     // --- GLOBAL HELPER FUNCTIONS ---
 
-    /**
-     * @description Checks if the request is made by an authenticated user.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Validates that the provided ID matches the authenticated user's UID.
-     * Used for path-based authorization (e.g., /users/{userId}).
-     */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /**
-     * @description Validates that the user owns the existing document in the database.
-     * Combines existence check with ownership check for updates and deletes.
-     */
-    function isExistingOwner(ownerId) {
-      return resource != null && isOwner(ownerId);
-    }
-
-    /**
-     * @description Returns the data from the incoming request.
-     */
     function incomingData() {
       return request.resource.data;
     }
 
-    /**
-     * @description Returns the existing data from the document in the database.
-     */
     function existingData() {
       return resource.data;
     }
@@ -71,50 +30,40 @@ service cloud.firestore {
     // --- COLLECTION RULES ---
 
     /**
-     * @description Manages UserProfile documents. Access is strictly private to the owner.
      * @path /users/{userId}
-     * @allow (get) if User A requests /users/UserA while logged in as UserA.
-     * @deny (list) if User A attempts to list all users.
-     * @principle Restricts access to a user's own data tree based on path variables.
+     * Private profiles: only the user can read/write their own document.
      */
     match /users/{userId} {
-      allow get, list: if isOwner(userId);
+      // Path-based ownership check for single document access
+      allow get: if isOwner(userId);
       
-      // On create: Ensure the user can only create their own doc and the internal ID matches.
+      // List is generally not needed for users collection in this app
+      allow list: if isOwner(userId);
+      
       allow create: if isOwner(userId) && incomingData().id == userId;
-      
-      // On update: Ensure the user owns the doc and doesn't change their ID.
-      allow update: if isExistingOwner(userId) && incomingData().id == existingData().id;
-      
-      allow delete: if isExistingOwner(userId);
+      allow update: if isOwner(userId) && incomingData().id == existingData().id;
+      allow delete: if isOwner(userId);
     }
 
     /**
-     * @description Manages waste complaints. Ownership is verified via a 'userId' field in the document.
      * @path /complaints/{complaintId}
-     * @allow (list) if User A queries complaints where('userId', '==', 'UserA').
-     * @deny (create) if User A attempts to submit a complaint with User B's ID.
-     * @principle Enforces document ownership via denormalized fields and mandates query filtering.
+     * Complaints: secured by a 'userId' field within each document.
+     * Forces the client to use .where('userId', '==', auth.uid) for list operations.
      */
     match /complaints/{complaintId} {
       
-      // 'resource' is available for list in v2 rules to enforce query filters.
-      // This forces the client to use .where('userId', '==', auth.uid).
-      allow get, list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Use resource.data to verify ownership for both individual get and collection listing.
+      // This enforces the 'Rules are not Filters' principle.
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
 
-      // On create: Ensure the complaint is linked to the authenticated user.
+      // Ensure new complaints are correctly linked to the submitter.
       allow create: if isSignedIn() && incomingData().userId == request.auth.uid;
 
-      // On update: Ensure only the original submitter can update, and they cannot transfer ownership.
-      allow update: if isExistingOwner(existingData().userId) 
-                    && incomingData().userId == existingData().userId;
-
-      // On delete: Only the owner can remove the record.
-      allow delete: if isExistingOwner(existingData().userId);
+      // Only the submitter can update or delete their own reports.
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // --- DEFAULT DENY ---
-    // Explicitly deny any access to collections not defined above.
     match /{path=**} {
       allow read, write: if false;
     }
