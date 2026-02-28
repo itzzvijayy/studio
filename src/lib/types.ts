@@ -10,6 +10,7 @@ export interface UserProfile {
   email: string;
   contactNumber?: string;
   role: UserRole;
+  workerId?: string;
   registeredDateTime: string;
 }
 

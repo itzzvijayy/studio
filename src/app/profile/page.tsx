@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Settings, Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut, Briefcase, UserCircle } from 'lucide-react';
+import { Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut, Briefcase, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -76,6 +76,7 @@ export default function ProfilePage() {
       contactNumber: editPhone,
       email: user.email || '',
       role: profileDoc?.role || 'citizen',
+      workerId: profileDoc?.workerId || null,
       registeredDateTime: profileDoc?.registeredDateTime || new Date().toISOString(),
     };
 
@@ -281,6 +282,15 @@ export default function ProfilePage() {
                       <p className="font-bold capitalize">{profileDoc?.role || 'Citizen'}</p>
                    </div>
                  </div>
+                 {isWorker && profileDoc?.workerId && (
+                   <div className="flex items-center gap-3 pt-2 border-t">
+                     <ShieldCheck className="w-4 h-4 text-accent" />
+                     <div className="text-sm">
+                        <p className="text-xs text-muted-foreground uppercase font-bold tracking-tighter">Worker ID / Badge</p>
+                        <p className="font-bold text-accent">{profileDoc.workerId}</p>
+                     </div>
+                   </div>
+                 )}
               </CardContent>
             </Card>
 

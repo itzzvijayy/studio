@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useAuth, useUser, useFirestore, initiateEmailSignIn, initiateEmailSignUp } from '@/firebase';
-import { Loader2, Mail, Lock, User, Leaf, Phone, Briefcase, UserCircle } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Leaf, Phone, Briefcase, UserCircle, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc } from 'firebase/firestore';
 import { UserRole } from '@/lib/types';
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [workerId, setWorkerId] = useState('');
   const [role, setRole] = useState<UserRole>('citizen');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const auth = useAuth();
@@ -72,6 +73,7 @@ export default function LoginPage() {
         email: email,
         contactNumber: phone,
         role: role,
+        workerId: role === 'worker' ? workerId : null,
         registeredDateTime: new Date().toISOString(),
       });
 
@@ -200,6 +202,25 @@ export default function LoginPage() {
                       />
                     </div>
                   </div>
+
+                  {role === 'worker' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="signup-worker-id">Worker ID / Badge Number</Label>
+                      <div className="relative">
+                        <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="signup-worker-id" 
+                          type="text" 
+                          placeholder="MCG-2024-XXXX" 
+                          className="pl-10 h-12 rounded-xl"
+                          value={workerId}
+                          onChange={(e) => setWorkerId(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="signup-phone">Contact Number</Label>
                     <div className="relative">

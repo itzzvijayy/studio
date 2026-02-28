@@ -32,6 +32,10 @@
             "worker"
           ]
         },
+        "workerId": {
+          "type": "string",
+          "description": "Official badge or employee ID for users with the worker role."
+        },
         "registeredDateTime": {
           "type": "string",
           "description": "The date and time when the user's profile was created.",
