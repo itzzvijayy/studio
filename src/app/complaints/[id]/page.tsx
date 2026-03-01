@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck, Clock, Star } from 'lucide-react';
+import { MapPin, Calendar, User, Info, AlertCircle, CheckCircle2, ArrowLeft, Sparkles, Map as MapIcon, Loader2, Briefcase, MessageSquare, ShieldCheck, Clock, Star, Navigation } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -89,6 +89,12 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
     setIsSubmittingFeedback(false);
   };
 
+  const handleNavigate = () => {
+    if (!complaint) return;
+    const { lat, lng } = complaint.location;
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
+  };
+
   if (isLoading) {
     return (
       <div className="container py-20 flex justify-center">
@@ -147,10 +153,21 @@ export default function ComplaintDetailPage({ params }: { params: Promise<{ id: 
                    <h3 className="font-bold text-lg">Site Location</h3>
                  </div>
                </div>
-               <p className="text-muted-foreground mb-2 flex items-start gap-2">
+               <p className="text-muted-foreground mb-4 flex items-start gap-2">
                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-1" />
                  {complaint.location.address}
                </p>
+               
+               {isWorker && (
+                 <Button 
+                   onClick={handleNavigate}
+                   className="w-full mb-4 rounded-xl h-12 font-bold bg-accent hover:bg-accent/90 text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
+                 >
+                   <Navigation className="w-5 h-5" />
+                   Start Navigation
+                 </Button>
+               )}
+
                <div className="p-3 bg-muted/30 rounded-xl text-xs font-mono text-center">
                  Coordinates: {complaint.location.lat.toFixed(4)}, {complaint.location.lng.toFixed(4)}
                </div>
