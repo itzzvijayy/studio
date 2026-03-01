@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -10,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { aiWasteDetectionAndClassification } from '@/ai/flows/ai-waste-detection-and-classification-flow';
+import { aiWasteDetectionAndClassification, AIWasteDetectionAndClassificationOutput } from '@/ai/flows/ai-waste-detection-and-classification-flow';
 import { aiComplaintSummaryFromText } from '@/ai/flows/ai-complaint-summary-from-text';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -25,7 +24,7 @@ export function ReportForm() {
   const [address, setAddress] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiResult, setAiResult] = useState<AIWasteDetectionAndClassificationOutput | null>(null);
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
@@ -151,7 +150,7 @@ export function ReportForm() {
     try {
       const result = await aiWasteDetectionAndClassification({ photoDataUri: dataUri });
       setAiResult(result);
-      if (result.wasteDetected && result.analysisDetails && !description) {
+      if (result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
     } catch (error) {
@@ -298,28 +297,47 @@ export function ReportForm() {
         </Card>
       )}
 
-      {aiResult && aiResult.wasteDetected && (
-        <Card className="border-none bg-green-50/50 shadow-lg rounded-[2rem] overflow-hidden border border-green-100/50 backdrop-blur-sm">
+      {aiResult && (
+        <Card className={cn(
+          "border-none shadow-lg rounded-[2rem] overflow-hidden border backdrop-blur-sm",
+          aiResult.wasteDetected ? "bg-green-50/50 border-green-100/50" : "bg-blue-50/50 border-blue-100/50"
+        )}>
           <CardContent className="p-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-green-500 rounded-xl">
+              <div className={cn("p-2 rounded-xl", aiResult.wasteDetected ? "bg-green-500" : "bg-blue-500")}>
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="font-black text-green-700 uppercase tracking-widest text-xs">Vision-AI Verified Report</span>
+              <span className={cn("font-black uppercase tracking-widest text-xs", aiResult.wasteDetected ? "text-green-700" : "text-blue-700")}>
+                Vision-AI {aiResult.wasteDetected ? "Verified Report" : "Analysis Complete"}
+              </span>
             </div>
-            <div className="flex flex-wrap gap-3 mb-6">
-              <Badge variant="outline" className="bg-white/80 border-green-200 text-green-700 font-bold capitalize px-4 py-1.5 rounded-xl shadow-sm">
-                Type: {aiResult.wasteType}
+            
+            {aiResult.wasteDetected ? (
+              <div className="flex flex-wrap gap-3 mb-6">
+                {aiResult.wasteType && (
+                  <Badge variant="outline" className="bg-white/80 border-green-200 text-green-700 font-bold capitalize px-4 py-1.5 rounded-xl shadow-sm">
+                    Type: {aiResult.wasteType}
+                  </Badge>
+                )}
+                {aiResult.severity && (
+                  <Badge className={cn(
+                    "capitalize border-none px-4 py-1.5 rounded-xl shadow-md font-bold", 
+                    aiResult.severity === 'critical' ? 'bg-red-600' : 'bg-primary'
+                  )}>
+                    {aiResult.severity} Severity
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <Badge variant="outline" className="bg-white/80 border-blue-200 text-blue-700 font-bold px-4 py-1.5 rounded-xl shadow-sm mb-6">
+                No major environmental waste detected
               </Badge>
-              <Badge className={cn(
-                "capitalize border-none px-4 py-1.5 rounded-xl shadow-md font-bold", 
-                aiResult.severity === 'critical' ? 'bg-red-600' : 'bg-primary'
-              )}>
-                {aiResult.severity} Severity
-              </Badge>
-            </div>
-            <div className="bg-white/50 p-4 rounded-2xl border border-green-100">
-              <p className="text-sm text-green-900 leading-relaxed font-medium italic">"{aiResult.analysisDetails}"</p>
+            )}
+
+            <div className={cn("p-4 rounded-2xl border", aiResult.wasteDetected ? "bg-white/50 border-green-100" : "bg-white/50 border-blue-100")}>
+              <p className={cn("text-sm leading-relaxed font-medium italic", aiResult.wasteDetected ? "text-green-900" : "text-blue-900")}>
+                "{aiResult.analysisDetails}"
+              </p>
             </div>
           </CardContent>
         </Card>

@@ -38,8 +38,8 @@ const SeveritySchema = z.enum(['low', 'medium', 'high', 'critical']);
 
 const AIWasteDetectionAndClassificationOutputSchema = z.object({
   wasteDetected: z.boolean().describe('Whether waste was detected in the image.'),
-  wasteType: WasteTypeSchema.describe('The primary type of waste detected.').optional(),
-  severity: SeveritySchema.describe('The severity of the waste detected.').optional(),
+  wasteType: WasteTypeSchema.nullable().describe('The primary type of waste detected. Use null if no waste is detected.').optional(),
+  severity: SeveritySchema.nullable().describe('The severity of the waste detected. Use null if no waste is detected.').optional(),
   analysisDetails: z
     .string()
     .describe(
