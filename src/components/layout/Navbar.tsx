@@ -5,13 +5,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Camera, ClipboardList, User, Leaf, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth, useUser, initiateAnonymousSignIn } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase, initiateAnonymousSignIn } from '@/firebase';
 import { useEffect } from 'react';
+import { doc } from 'firebase/firestore';
+import { UserProfile } from '@/lib/types';
 
 export function Navbar() {
   const pathname = usePathname();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
 
   useEffect(() => {
     // Only auto-sign in if they aren't loading and have no user at all
@@ -20,10 +23,24 @@ export function Navbar() {
     }
   }, [user, isUserLoading, auth]);
 
+  // Fetch profile for the name
+  const profileRef = useMemoFirebase(() => {
+    if (!firestore || !user || user.isAnonymous) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: profileDoc } = useDoc<UserProfile>(profileRef);
+
+  const displayName = profileDoc?.name || user?.displayName || (user?.isAnonymous ? 'Guest Citizen' : 'Guardian');
+
   const navItems = [
     { label: 'Submit', href: '/submit', icon: Camera },
     { label: 'Complaints', href: '/complaints', icon: ClipboardList },
-    { label: 'Profile', href: '/profile', icon: User },
+    { 
+      label: pathname === '/profile' ? 'Profile' : displayName.split(' ')[0], 
+      href: '/profile', 
+      icon: User 
+    },
   ];
 
   const showLogin = !isUserLoading && user?.isAnonymous;
@@ -57,7 +74,7 @@ export function Navbar() {
                   )}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="text-[10px] md:text-sm font-semibold uppercase md:capitalize tracking-wider md:tracking-normal">
+                  <span className="text-[10px] md:text-sm font-semibold uppercase md:capitalize tracking-wider md:tracking-normal truncate max-w-[80px]">
                     {item.label}
                   </span>
                 </Link>

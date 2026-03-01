@@ -14,8 +14,9 @@ import { aiWasteDetectionAndClassification } from '@/ai/flows/ai-waste-detection
 import { aiComplaintSummaryFromText } from '@/ai/flows/ai-complaint-summary-from-text';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useFirestore, useUser, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import { UserProfile } from '@/lib/types';
 
 export function ReportForm() {
   const [image, setImage] = useState<string | null>(null);
@@ -35,6 +36,14 @@ export function ReportForm() {
   const router = useRouter();
   const firestore = useFirestore();
   const { user } = useUser();
+
+  // Fetch user profile for the real name
+  const profileRef = useMemoFirebase(() => {
+    if (!firestore || !user || user.isAnonymous) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [firestore, user]);
+
+  const { data: profileDoc } = useDoc<UserProfile>(profileRef);
 
   const stopCamera = () => {
     if (videoRef.current?.srcObject) {
@@ -84,19 +93,15 @@ export function ReportForm() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (!video || !canvas) {
-      console.error("Missing video or canvas ref");
-      return;
-    }
+    if (!video || !canvas) return;
 
-    // Attempt to capture even if readyState is low, but warn if no dimensions
     const width = video.videoWidth || video.clientWidth;
     const height = video.videoHeight || video.clientHeight;
 
     if (width === 0 || height === 0) {
       toast({
         title: "Camera not ready",
-        description: "The video stream is still initializing. Please wait a second.",
+        description: "Please wait a moment for the camera to initialize.",
         variant: "destructive",
       });
       return;
@@ -110,25 +115,13 @@ export function ReportForm() {
       try {
         context.drawImage(video, 0, 0, width, height);
         const dataUri = canvas.toDataURL('image/jpeg', 0.85);
-        
-        if (dataUri && dataUri.length > 100) {
-          setImage(dataUri);
-          stopCamera();
-          runAiAnalysis(dataUri);
-          handleGetLocation();
-          
-          toast({
-            title: "Photo Captured",
-            description: "Vision-AI is now analyzing the site.",
-          });
-        } else {
-          throw new Error("Failed to generate valid image data.");
-        }
+        setImage(dataUri);
+        stopCamera();
+        runAiAnalysis(dataUri);
+        handleGetLocation();
       } catch (err) {
-        console.error("Capture failed:", err);
         toast({
           title: "Capture Failed",
-          description: "Something went wrong while taking the photo. Please try again.",
           variant: "destructive",
         });
       }
@@ -143,15 +136,7 @@ export function ReportForm() {
           lng: position.coords.longitude
         };
         setLocation(coords);
-        if (!address || /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(address)) {
-          setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
-        }
-      }, () => {
-        toast({
-          title: "Location Unavailable",
-          description: "We couldn't pinpoint your location automatically. Please type it in.",
-          variant: "destructive",
-        });
+        setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
       });
     }
   };
@@ -164,13 +149,6 @@ export function ReportForm() {
       if (result.wasteDetected && result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
-    } catch (error) {
-      console.error('AI Analysis Error:', error);
-      toast({
-        title: "AI Offline",
-        description: "We couldn't analyze the photo automatically, but you can still submit.",
-        variant: "destructive"
-      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -178,11 +156,7 @@ export function ReportForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image) return;
-    if (!user) {
-      toast({ title: "Session Expired", description: "Please sign in again to submit reports.", variant: "destructive" });
-      return;
-    }
+    if (!image || !user) return;
 
     setIsSubmitting(true);
     try {
@@ -190,7 +164,7 @@ export function ReportForm() {
       
       const newComplaint = {
         userId: user.uid,
-        userName: user.displayName || 'Madurai Citizen',
+        userName: profileDoc?.name || user.displayName || 'Madurai Citizen',
         imageUrl: image,
         location: location ? { ...location, address } : { lat: 0, lng: 0, address },
         description: description,
@@ -207,19 +181,11 @@ export function ReportForm() {
       };
 
       await addDocumentNonBlocking(collection(firestore, 'complaints'), newComplaint);
-      
       toast({
-        title: "Madurai Guardian Success",
-        description: "Your report has been logged. Together we keep our city sacred.",
+        title: "Report Submitted",
+        description: "Together we keep Madurai beautiful.",
       });
       router.push('/complaints');
-    } catch (error) {
-      console.error('Submission Error:', error);
-      toast({
-        title: "Communication Error",
-        description: "Failed to send report. Check your internet connection.",
-        variant: "destructive",
-      });
     } finally {
       setIsSubmitting(false);
     }

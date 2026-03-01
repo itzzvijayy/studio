@@ -5,8 +5,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Leaf, MapPin, Award, ShieldCheck, ChevronRight, Loader2, Mail, Edit2, Check, X, Phone, LogOut, Briefcase, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -19,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { signOut } from 'firebase/auth';
 
 export default function ProfilePage() {
-  const avatarImg = PlaceHolderImages.find(img => img.id === 'avatar-user');
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const auth = useAuth();
@@ -115,6 +113,7 @@ export default function ProfilePage() {
   }
 
   const isWorker = profileDoc?.role === 'worker';
+  const profileName = profileDoc?.name || user?.displayName || editName || 'Madurai Guardian';
 
   return (
     <div className="container px-4 py-8 md:py-12 max-w-4xl">
@@ -131,8 +130,9 @@ export default function ProfilePage() {
           </div>
           <div className="absolute -bottom-8 left-8 flex items-end gap-6">
             <Avatar className="h-32 w-32 border-4 border-white shadow-2xl rounded-3xl bg-white overflow-hidden">
-              <AvatarImage src={avatarImg?.imageUrl} className="object-cover" />
-              <AvatarFallback className="text-4xl bg-secondary text-primary uppercase">{editName?.[0] || 'C'}</AvatarFallback>
+              <AvatarFallback className="text-4xl bg-secondary text-primary font-bold uppercase">
+                {profileName[0]}
+              </AvatarFallback>
             </Avatar>
             <div className="pb-2 text-white md:text-foreground">
                {isEditing ? (
@@ -153,7 +153,7 @@ export default function ProfilePage() {
                ) : (
                  <>
                   <h1 className="text-3xl font-bold tracking-tight shadow-sm md:shadow-none bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg">
-                    {profileDoc?.name || user?.displayName || editName}
+                    {profileName}
                   </h1>
                   <div className="flex items-center gap-2 text-white md:text-muted-foreground font-medium bg-black/20 md:bg-transparent px-2 md:px-0 rounded-lg mt-1">
                     {isWorker ? <Briefcase className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
