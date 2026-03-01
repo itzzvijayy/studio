@@ -37,7 +37,6 @@ export function ReportForm() {
   const firestore = useFirestore();
   const { user } = useUser();
 
-  // Fetch user profile for the real name
   const profileRef = useMemoFirebase(() => {
     if (!firestore || !user || user.isAnonymous) return null;
     return doc(firestore, 'users', user.uid);
@@ -95,16 +94,19 @@ export function ReportForm() {
 
     if (!video || !canvas) return;
 
-    const width = video.videoWidth || video.clientWidth;
-    const height = video.videoHeight || video.clientHeight;
+    // Optimization: Resize image to ensure it stays within Server Action payload limits (typically 1MB)
+    const MAX_WIDTH = 1024;
+    const MAX_HEIGHT = 1024;
+    let width = video.videoWidth || video.clientWidth;
+    let height = video.videoHeight || video.clientHeight;
 
-    if (width === 0 || height === 0) {
-      toast({
-        title: "Camera not ready",
-        description: "Please wait a moment for the camera to initialize.",
-        variant: "destructive",
-      });
-      return;
+    if (width > MAX_WIDTH) {
+      height *= MAX_WIDTH / width;
+      width = MAX_WIDTH;
+    }
+    if (height > MAX_HEIGHT) {
+      width *= MAX_HEIGHT / height;
+      height = MAX_HEIGHT;
     }
 
     canvas.width = width;
@@ -114,7 +116,8 @@ export function ReportForm() {
     if (context) {
       try {
         context.drawImage(video, 0, 0, width, height);
-        const dataUri = canvas.toDataURL('image/jpeg', 0.85);
+        // Using lower quality JPEG to further reduce payload size
+        const dataUri = canvas.toDataURL('image/jpeg', 0.7);
         setImage(dataUri);
         stopCamera();
         runAiAnalysis(dataUri);
@@ -137,6 +140,8 @@ export function ReportForm() {
         };
         setLocation(coords);
         setAddress(`${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`);
+      }, (err) => {
+        console.warn("Location access denied or unavailable", err);
       });
     }
   };
@@ -149,6 +154,13 @@ export function ReportForm() {
       if (result.wasteDetected && result.analysisDetails && !description) {
         setDescription(result.analysisDetails);
       }
+    } catch (error) {
+      console.error("AI Analysis Error:", error);
+      toast({
+        title: "Analysis Connectivity Issue",
+        description: "Vision-AI is taking longer than usual. You can still submit your report with a manual description.",
+        variant: "destructive",
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -186,6 +198,13 @@ export function ReportForm() {
         description: "Together we keep Madurai beautiful.",
       });
       router.push('/complaints');
+    } catch (error) {
+      console.error("Submit Error:", error);
+      toast({
+        title: "Submission Failed",
+        description: "Please check your internet connection and try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
